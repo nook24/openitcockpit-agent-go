@@ -901,6 +901,16 @@ def publish_packages() {
             sh """docker run --rm --user 111:116 -v '${env.WORKSPACE}/publish/rpm/stable':/rpm openitcockpit/createrepo_c"""
             /*sh """chown jenkins:jenkins ${env.WORKSPACE} -R"""*/
 
+            /* Sign Repository meta data with GPG for SLES systems */
+            /* this will create the repomd.xml.asc file */
+            sh """
+            gpg --batch --yes --pinentry-mode loopback \
+                --passphrase-file /opt/repository/aptly/pw \
+                --local-user "it-novum GmbH <support@itsm.it-novum.com>" \
+                --detach-sign --armor \
+                ${env.WORKSPACE}/publish/rpm/stable/repodata/repomd.xml
+            """
+
             /* Publish yum repository */
             /* apt02 = https://packages.openitcockpit.io/ */
             /* apt03 = https://packages5.openitcockpit.io/ */
