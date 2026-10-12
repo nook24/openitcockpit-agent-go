@@ -85,6 +85,10 @@ func (c *CheckDisk) Run(ctx context.Context) (interface{}, error) {
 			result.Usage.Used = usage.Used
 			result.Usage.Free = usage.Free
 			result.Usage.Percent = usage.UsedPercent
+			result.Usage.InodesTotal = usage.InodesTotal
+			result.Usage.InodesUsed = usage.InodesUsed
+			result.Usage.InodesFree = usage.InodesFree
+			result.Usage.InodesPercent = usage.InodesUsedPercent
 		}
 
 		diskResults = append(diskResults, result)

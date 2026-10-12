@@ -164,6 +164,7 @@ type Configuration struct {
 	Alfresco        bool  `mapstructure:"alfrescostats"`
 	Libvirt         bool  `mapstructure:"libvirt"`
 	Ntp             bool  `mapstructure:"ntp"`
+	SystemHealth    bool  `mapstructure:"systemhealth"`
 
 	// Alfresco
 
@@ -222,6 +223,7 @@ var defaultValue = map[string]interface{}{
 	"alfrescostats":        true,
 	"libvirt":              true,
 	"ntp":                  true,
+	"systemhealth":         true,
 	"wineventlog-logtypes": "System,Application",
 	"wineventlog-age":      3600,
 	"wineventlog-cache":    3600,

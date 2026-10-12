@@ -18,6 +18,7 @@ func getPlatformChecks() []Check {
 		&CheckSystemd{},
 		&CheckNtp{},
 		&CheckLogfile{},
+		&CheckSystemHealth{},
 	}
 
 	// Only contains the libvirt check if the agent got build with the "libvirt" build tag
