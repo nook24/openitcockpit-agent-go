@@ -24,7 +24,7 @@ mkdir -p "$LOG_DIR"
 chmod 755 "$LOG_DIR"
 
 # Restore configurations from backup (if available)
-for cfg in config.ini customchecks.ini prometheus_exporters.ini; do
+for cfg in config.ini customchecks.ini prometheus_exporters.ini logfiles.ini; do
     if [ -f "$AGENT_DIR/$cfg.old" ]; then
         cp "$AGENT_DIR/$cfg.old" "$AGENT_DIR/$cfg"
     fi

@@ -35,6 +35,7 @@ vendor/
 /customchecks.ini
 /customchecks.ini
 /prometheus_exporters.ini
+/logfiles.ini
 /__debug_bin
 /agent.log
 /auth.json

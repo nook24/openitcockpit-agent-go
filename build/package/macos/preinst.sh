@@ -33,7 +33,7 @@ fi
 
 # Backup configurations to prevent overwriting
 # We append .old to safely identify them in postinstall
-for cfg in config.ini customchecks.ini prometheus_exporters.ini; do
+for cfg in config.ini customchecks.ini prometheus_exporters.ini logfiles.ini; do
     if [ -f "$AGENT_DIR/$cfg" ]; then
         cp "$AGENT_DIR/$cfg" "$AGENT_DIR/$cfg.old"
     fi

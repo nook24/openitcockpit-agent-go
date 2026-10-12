@@ -1,6 +1,3 @@
-//go:build !libvirt
-// +build !libvirt
-
 package checks
 
 func getPlatformChecks() []Check {
@@ -18,5 +15,6 @@ func getPlatformChecks() []Check {
 		&CheckNetIo{},
 		&CheckDocker{},
 		&CheckNtp{},
+		&CheckLogfile{},
 	}
 }

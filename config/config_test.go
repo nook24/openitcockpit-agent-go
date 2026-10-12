@@ -504,3 +504,127 @@ func TestReadAgentConfigWithCCAndNewConfig(t *testing.T) {
 		t.Error("reload did not work, unexpected number of custom checks (0): ", len(ccc))
 	}
 }
+
+var logfilesConfig string = `[default]
+
+[Nginx_Errors]
+  path = /var/log/nginx/*error.log
+  match = \[(crit|alert|emerg)\]
+  exclude = favicon\.ico
+  enabled = true
+
+[ssh]
+  type = journald
+  unit = ssh.service
+  priority = 0..4
+  match = ` + "`Failed password #\\d+`" + `
+  window = 600
+  max_lines = 5
+  max_read_bytes = 1024
+  enabled = true
+
+[disabled]
+  path = /var/log/syslog
+  enabled = false
+
+[invalid_regex]
+  path = /var/log/syslog
+  match = (unclosed
+  enabled = true
+
+[missing_path]
+  type = file
+  enabled = true
+
+[unknown_type]
+  type = eventlog
+  enabled = true
+`
+
+func TestReadLogfilesConfig(t *testing.T) {
+	cfgdir := t.TempDir()
+	path := filepath.Join(cfgdir, "logfiles.ini")
+	if err := os.WriteFile(path, []byte(logfilesConfig), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	definitions, err := unmarshalLogfiles(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	byName := map[string]*LogfileDefinition{}
+	for _, definition := range definitions {
+		byName[definition.Name] = definition
+	}
+	if len(byName) != 5 {
+		t.Fatal("expected 5 enabled definitions, got: ", len(byName))
+	}
+	if _, ok := byName["disabled"]; ok {
+		t.Error("disabled definition must be ignored")
+	}
+
+	// Section names are lower case
+	nginx := byName["nginx_errors"]
+	if nginx == nil {
+		t.Fatal("missing nginx_errors")
+	}
+	if nginx.ConfigError != "" || nginx.Type != LogfileTypeFile || nginx.Window != 300 || nginx.MaxLines != 10 || nginx.MaxReadBytes != 16*1024*1024 {
+		t.Errorf("unexpected defaults: %+v", nginx)
+	}
+	if !nginx.MatchRegexp.MatchString("2025/01/01 [crit] 123#0: foo") || !nginx.ExcludeRegexp.MatchString("/favicon.ico") {
+		t.Errorf("unexpected regular expressions: %s %s", nginx.Match, nginx.Exclude)
+	}
+
+	ssh := byName["ssh"]
+	if ssh.ConfigError != "" || ssh.Type != LogfileTypeJournald || ssh.Unit != "ssh.service" || ssh.Priority != "0..4" ||
+		ssh.Window != 600 || ssh.MaxLines != 5 || ssh.MaxReadBytes != 1024 {
+		t.Errorf("unexpected definition: %+v", ssh)
+	}
+	if ssh.Match != `Failed password #\d+` {
+		t.Errorf("unexpected match: %s", ssh.Match)
+	}
+
+	for name, expected := range map[string]string{
+		"invalid_regex": "invalid match regex",
+		"missing_path":  "missing path",
+		"unknown_type":  "unknown type",
+	} {
+		if !strings.Contains(byName[name].ConfigError, expected) {
+			t.Errorf("expected error '%s' for %s, got: '%s'", expected, name, byName[name].ConfigError)
+		}
+	}
+}
+
+func TestReadAgentConfigWithLogfiles(t *testing.T) {
+	cfgdir := t.TempDir()
+	configPath := filepath.Join(cfgdir, "config.ini")
+	logfilesPath := filepath.Join(cfgdir, "logfiles.ini")
+	if err := os.WriteFile(configPath, []byte("[default]\nlogfiles = "+logfilesPath+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// A missing logfiles.ini is not an error
+	c, err := Load(context.Background(), configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.LogfileConfiguration == nil || len(c.LogfileConfiguration) != 0 {
+		t.Fatal("expected empty logfile configuration")
+	}
+
+	if err := c.SaveLogfileConfiguration([]byte(logfilesConfig)); err != nil {
+		t.Fatal(err)
+	}
+	if string(c.ReadLogfileConfiguration()) != logfilesConfig {
+		t.Fatal("unexpected logfile configuration")
+	}
+
+	c, err = Load(context.Background(), configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.LogfileConfiguration) != 5 {
+		t.Fatal("unexpected number of logfile definitions (5): ", len(c.LogfileConfiguration))
+	}
+}

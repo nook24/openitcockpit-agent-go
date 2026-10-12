@@ -15,6 +15,13 @@ import (
 	libvirt "libvirt.org/libvirt-go"
 )
 
+// libvirtChecks returns the checks which require the "libvirt" build tag
+func libvirtChecks() []Check {
+	return []Check{
+		&CheckLibvirt{},
+	}
+}
+
 // CheckLibvirt gathers information about running VMs
 type CheckLibvirt struct {
 	lastNetstatResults   map[string]map[string]*lastNetstatResultsForDelta

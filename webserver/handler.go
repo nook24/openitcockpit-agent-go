@@ -235,6 +235,8 @@ type configurationPush struct {
 	Configuration                   string `json:"configuration"`
 	CustomCheckConfiguration        string `json:"customcheck_configuration"`
 	PrometheusExporterConfiguration string `json:"prometheus_exporter"`
+	// Optional, as older openITCOCKPIT versions do not know about the logfile configuration
+	LogfileConfiguration *string `json:"logfile_configuration,omitempty"`
 }
 
 func (w *handler) handleConfigRead(response http.ResponseWriter, request *http.Request) {
@@ -262,6 +264,10 @@ func (w *handler) handleConfigRead(response http.ResponseWriter, request *http.R
 
 	data = w.Configuration.ReadPrometheusExporterConfiguration()
 	r.PrometheusExporterConfiguration = base64.StdEncoding.EncodeToString(data)
+
+	data = w.Configuration.ReadLogfileConfiguration()
+	logfileData := base64.StdEncoding.EncodeToString(data)
+	r.LogfileConfiguration = &logfileData
 
 	data, err = json.Marshal(&r)
 	if err != nil {
@@ -321,6 +327,16 @@ func (w *handler) handleConfigPush(response http.ResponseWriter, request *http.R
 		return
 	}
 
+	var logfileData []byte
+	if r.LogfileConfiguration != nil {
+		logfileData, err = base64.StdEncoding.DecodeString(*r.LogfileConfiguration)
+		if err != nil {
+			log.Errorln("Webserver: Could not decode logfile configuration string for configuration push: ", err)
+			http.Error(response, "invalid json or base64 string", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	if len(cfgData) == 0 {
 		log.Errorln("Webserver: received empty configuration for configuration push: ", err)
 		http.Error(response, "invalid json or base64 string", http.StatusInternalServerError)
@@ -337,6 +353,13 @@ func (w *handler) handleConfigPush(response http.ResponseWriter, request *http.R
 
 	if err := w.Configuration.SavePrometheusExporterConfiguration(prometheusData); err != nil {
 		log.Errorln("Webserver: ", err)
+	}
+
+	// Only overwrite the logfile configuration if it was part of the request
+	if r.LogfileConfiguration != nil {
+		if err := w.Configuration.SaveLogfileConfiguration(logfileData); err != nil {
+			log.Errorln("Webserver: ", err)
+		}
 	}
 
 	if w.Reloader != nil {
