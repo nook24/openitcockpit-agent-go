@@ -18,6 +18,8 @@ func getPlatformChecks() []Check {
 		&CheckSystemd{},
 		&CheckNtp{},
 		&CheckLogfile{},
+		&CheckCertificate{},
+		&CheckFile{},
 		&CheckSystemHealth{},
 	}
 

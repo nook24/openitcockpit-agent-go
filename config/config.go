@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/go-viper/encoding/ini"
@@ -33,44 +32,6 @@ type CustomCheck struct {
 	// if not set the command will be just executed as it is
 	Shell         string `mapstructure:"shell"`
 	PowershellExe string `mapstructure:"powershell_exe"`
-}
-
-// Supported source types of a LogfileDefinition
-const (
-	LogfileTypeFile       = "file"
-	LogfileTypeJournald   = "journald"
-	LogfileTypeUnifiedLog = "unifiedlog"
-)
-
-// LogfileDefinition describes a log source which gets monitored for lines matching a regular expression
-type LogfileDefinition struct {
-	Name    string `mapstructure:"-"`
-	Enabled bool   `mapstructure:"enabled"`
-	// file (all platforms), journald (Linux) or unifiedlog (macOS)
-	Type string `mapstructure:"type"`
-	// file: Path or glob pattern of the log file(s)
-	Path string `mapstructure:"path"`
-	// journald: Comma separated list of systemd units
-	Unit string `mapstructure:"unit"`
-	// journald: Priority or priority range like "err" or "0..4" (see journalctl -p)
-	Priority string `mapstructure:"priority"`
-	// unifiedlog: Predicate passed to "log show --predicate"
-	Predicate string `mapstructure:"predicate"`
-	// Regular expression a line has to match. If empty, every line matches
-	Match string `mapstructure:"match"`
-	// Regular expression to ignore lines which would match otherwise
-	Exclude string `mapstructure:"exclude"`
-	// Matches older than Window seconds will be discarded
-	Window int64 `mapstructure:"window"`
-	// Number of the latest matching lines to include in the check result
-	MaxLines int64 `mapstructure:"max_lines"`
-	// Maximum amount of bytes to read per run and source
-	MaxReadBytes int64 `mapstructure:"max_read_bytes"`
-
-	MatchRegexp   *regexp.Regexp `json:"-" mapstructure:"-"`
-	ExcludeRegexp *regexp.Regexp `json:"-" mapstructure:"-"`
-	// ConfigError is set if the definition is invalid. The check will report it as error
-	ConfigError string `mapstructure:"-"`
 }
 
 type PushConfiguration struct {
@@ -137,6 +98,8 @@ type Configuration struct {
 	ConfigUpdate         bool   `mapstructure:"config-update-mode"`
 	CustomchecksFilePath string `mapstructure:"customchecks"`
 	LogfilesFilePath     string `mapstructure:"logfiles"`
+	CertificatesFilePath string `mapstructure:"certificates"`
+	FilesFilePath        string `mapstructure:"files"`
 
 	// EnablePPROF for debugging memory leaks with the go tool pprof command
 	EnablePPROF bool `mapstructure:"enable-dev-pprof"`
@@ -192,7 +155,9 @@ type Configuration struct {
 
 	CustomCheckConfiguration []*CustomCheck `json:"customchecks_configuration" mapstructure:"-"`
 
-	LogfileConfiguration []*LogfileDefinition `json:"logfiles_configuration" mapstructure:"-"`
+	LogfileConfiguration     []*LogfileDefinition     `json:"logfiles_configuration" mapstructure:"-"`
+	CertificateConfiguration []*CertificateDefinition `json:"certificates_configuration" mapstructure:"-"`
+	FileConfiguration        []*FileDefinition        `json:"files_configuration" mapstructure:"-"`
 
 	// Prometheus Exporter / Proxy
 	Prometheus                      *PrometheusConfiguration `json:"prometheus"`
@@ -230,6 +195,8 @@ var defaultValue = map[string]interface{}{
 	"wineventlog-method":   "WMI",
 	"customchecks":         filepath.Join(platformpaths.Get().ConfigPath(), "customchecks.ini"),
 	"logfiles":             filepath.Join(platformpaths.Get().ConfigPath(), "logfiles.ini"),
+	"certificates":         filepath.Join(platformpaths.Get().ConfigPath(), "certificates.ini"),
+	"files":                filepath.Join(platformpaths.Get().ConfigPath(), "files.ini"),
 	"tls-security-level":   "lax",
 	"autossl-folder":       platformpaths.Get().ConfigPath(),
 	"autossl-csr-file":     filepath.Join(platformpaths.Get().ConfigPath(), "agent.csr"),
@@ -308,19 +275,10 @@ func unmarshalConfiguration(v *viper.Viper) (*Configuration, error) {
 		cfg.CustomCheckConfiguration = []*CustomCheck{}
 	}
 
-	// The logfiles.ini is optional, so a missing file is not an error
-	if cfg.LogfilesFilePath != "" && utils.FileExists(cfg.LogfilesFilePath) {
-		if definitions, err := unmarshalLogfiles(cfg.LogfilesFilePath); err != nil {
-			logger, _ := basiclog.New()
-			logger.Errorln("Configuration: could not load logfile definitions: ", err)
-		} else {
-			cfg.LogfileConfiguration = definitions
-		}
-	}
-
-	if cfg.LogfileConfiguration == nil {
-		cfg.LogfileConfiguration = []*LogfileDefinition{}
-	}
+	// logfiles.ini, certificates.ini and files.ini are optional, so missing files are not an error
+	cfg.LogfileConfiguration = loadOptionalDefinitions(cfg.LogfilesFilePath, "logfile definitions", unmarshalLogfiles)
+	cfg.CertificateConfiguration = loadOptionalDefinitions(cfg.CertificatesFilePath, "certificate definitions", unmarshalCertificates)
+	cfg.FileConfiguration = loadOptionalDefinitions(cfg.FilesFilePath, "file definitions", unmarshalFiles)
 
 	// Parse Prometheus Exporter configuration
 	if cfg.Prometheus.ExportersFilePath != "" && cfg.Prometheus.Enable {
@@ -417,91 +375,6 @@ func unmarshalCustomChecks(configPath string) ([]*CustomCheck, error) {
 	return checks, nil
 }
 
-func unmarshalLogfiles(configPath string) ([]*LogfileDefinition, error) {
-	// Register the INI encoding
-	// As ini support got removed from viper with v1.20.0
-	// https://github.com/spf13/viper/releases/tag/v1.20.0
-	// https://github.com/spf13/viper/blob/master/UPGRADE.md#v120x
-	codecRegistry := viper.NewCodecRegistry()
-	codecRegistry.RegisterCodec("ini", ini.Codec{})
-
-	v := viper.NewWithOptions(
-		viper.WithCodecRegistry(codecRegistry),
-	)
-
-	v.SetConfigFile(configPath)
-	v.SetConfigType("ini")
-
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
-	}
-
-	cfg := map[string]*LogfileDefinition{}
-
-	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, err
-	}
-
-	definitions := make([]*LogfileDefinition, 0)
-	for name, definition := range cfg {
-		if name == "default" || !definition.Enabled {
-			continue
-		}
-		definition.Name = name
-		if definition.Window <= 0 {
-			definition.Window = 300
-		}
-		if definition.MaxLines < 0 {
-			definition.MaxLines = 0
-		} else if definition.MaxLines == 0 {
-			definition.MaxLines = 10
-		}
-		if definition.MaxReadBytes <= 0 {
-			definition.MaxReadBytes = 16 * 1024 * 1024
-		}
-
-		// Invalid definitions are kept, so the check can report the error for the affected log only
-		if err := definition.validate(); err != nil {
-			definition.ConfigError = err.Error()
-			logger, _ := basiclog.New()
-			logger.Errorln("Configuration: invalid logfile definition ", name, ": ", err)
-		}
-		definitions = append(definitions, definition)
-	}
-
-	return definitions, nil
-}
-
-func (d *LogfileDefinition) validate() error {
-	d.Type = strings.ToLower(strings.TrimSpace(d.Type))
-	if d.Type == "" {
-		d.Type = LogfileTypeFile
-	}
-
-	switch d.Type {
-	case LogfileTypeFile:
-		if strings.TrimSpace(d.Path) == "" {
-			return fmt.Errorf("missing path in logfile definition: %s", d.Name)
-		}
-	case LogfileTypeJournald, LogfileTypeUnifiedLog:
-	default:
-		return fmt.Errorf("unknown type '%s' in logfile definition: %s", d.Type, d.Name)
-	}
-
-	var err error
-	if d.Match != "" {
-		if d.MatchRegexp, err = regexp.Compile(d.Match); err != nil {
-			return fmt.Errorf("invalid match regex in logfile definition %s: %s", d.Name, err)
-		}
-	}
-	if d.Exclude != "" {
-		if d.ExcludeRegexp, err = regexp.Compile(d.Exclude); err != nil {
-			return fmt.Errorf("invalid exclude regex in logfile definition %s: %s", d.Name, err)
-		}
-	}
-	return nil
-}
-
 func unmarshalPrometheusExporters(configPath string) ([]*PrometheusExporter, error) {
 	// Register the INI encoding
 	// As ini support got removed from viper with v1.20.0
@@ -577,24 +450,6 @@ func (c *Configuration) ReadCustomCheckConfiguration() []byte {
 		data = []byte{}
 	}
 	return data
-}
-
-func (c *Configuration) ReadLogfileConfiguration() []byte {
-	data, err := os.ReadFile(c.LogfilesFilePath)
-	if err != nil {
-		data = []byte{}
-	}
-	return data
-}
-
-func (c *Configuration) SaveLogfileConfiguration(config []byte) error {
-	if c.LogfilesFilePath == "" {
-		return fmt.Errorf("no path for the logfile configuration defined")
-	}
-	if err := os.WriteFile(c.LogfilesFilePath, config, 0600); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (c *Configuration) ReadPrometheusExporterConfiguration() []byte {

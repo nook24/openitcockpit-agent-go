@@ -17,5 +17,7 @@ func getPlatformChecks() []Check {
 		&CheckWindowsEventLog{},
 		&CheckNtp{},
 		&CheckLogfile{},
+		&CheckCertificate{},
+		&CheckFile{},
 	}
 }

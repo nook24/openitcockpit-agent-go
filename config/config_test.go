@@ -628,3 +628,101 @@ func TestReadAgentConfigWithLogfiles(t *testing.T) {
 		t.Fatal("unexpected number of logfile definitions (5): ", len(c.LogfileConfiguration))
 	}
 }
+
+func TestReadCertificatesAndFilesConfig(t *testing.T) {
+	cfgdir := t.TempDir()
+	configPath := filepath.Join(cfgdir, "config.ini")
+	certificatesPath := filepath.Join(cfgdir, "certificates.ini")
+	filesPath := filepath.Join(cfgdir, "files.ini")
+
+	config := fmt.Sprintf("[default]\ncertificates = %s\nfiles = %s\n", certificatesPath, filesPath)
+	if err := os.WriteFile(configPath, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	certificates := `[default]
+[letsencrypt]
+  path = /etc/letsencrypt/live/*/fullchain.pem
+  hostname = www.example.com
+  enabled = true
+[iis]
+  type = windows_store
+  subject = (?i)example\.com
+  enabled = true
+[disabled]
+  path = /tmp/foo.pem
+  enabled = false
+[missing_path]
+  enabled = true
+[invalid_subject]
+  type = windows_store
+  subject = (unclosed
+  enabled = true
+`
+	files := `[backup]
+  path = /backup/db-*.sql.gz
+  enabled = true
+[mailqueue]
+  type = directory
+  path = /var/spool/postfix/deferred
+  recursive = true
+  pattern = *
+  enabled = true
+[unknown]
+  type = socket
+  path = /tmp
+  enabled = true
+`
+	if err := os.WriteFile(certificatesPath, []byte(certificates), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filesPath, []byte(files), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	c, err := Load(context.Background(), configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	certificateDefinitions := map[string]*CertificateDefinition{}
+	for _, d := range c.CertificateConfiguration {
+		certificateDefinitions[d.Name] = d
+	}
+	if len(certificateDefinitions) != 4 {
+		t.Fatal("expected 4 enabled certificate definitions, got: ", len(certificateDefinitions))
+	}
+	if d := certificateDefinitions["letsencrypt"]; d.Type != CertificateTypeFile || d.Hostname != "www.example.com" || d.ConfigError != "" {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if d := certificateDefinitions["iis"]; d.Store != `LocalMachine\My` || d.SubjectRegexp == nil || !d.SubjectRegexp.MatchString("CN=WWW.EXAMPLE.COM") {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if !strings.Contains(certificateDefinitions["missing_path"].ConfigError, "missing path") {
+		t.Error("expected missing path error")
+	}
+	if !strings.Contains(certificateDefinitions["invalid_subject"].ConfigError, "invalid subject regex") {
+		t.Error("expected invalid subject regex error")
+	}
+
+	fileDefinitions := map[string]*FileDefinition{}
+	for _, d := range c.FileConfiguration {
+		fileDefinitions[d.Name] = d
+	}
+	if len(fileDefinitions) != 3 {
+		t.Fatal("expected 3 file definitions, got: ", len(fileDefinitions))
+	}
+	if d := fileDefinitions["backup"]; d.Type != FileTypeFile || d.MaxFiles != 100000 || d.ConfigError != "" {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if d := fileDefinitions["mailqueue"]; d.Type != FileTypeDirectory || !d.Recursive || d.Pattern != "*" {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if !strings.Contains(fileDefinitions["unknown"].ConfigError, "unknown type") {
+		t.Error("expected unknown type error")
+	}
+
+	if string(c.ReadCertificateConfiguration()) != certificates || string(c.ReadFileConfiguration()) != files {
+		t.Error("unexpected content of the configuration files")
+	}
+}

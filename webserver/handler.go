@@ -235,8 +235,26 @@ type configurationPush struct {
 	Configuration                   string `json:"configuration"`
 	CustomCheckConfiguration        string `json:"customcheck_configuration"`
 	PrometheusExporterConfiguration string `json:"prometheus_exporter"`
-	// Optional, as older openITCOCKPIT versions do not know about the logfile configuration
-	LogfileConfiguration *string `json:"logfile_configuration,omitempty"`
+	// Optional, as older openITCOCKPIT versions do not know about these configuration files
+	LogfileConfiguration     *string `json:"logfile_configuration,omitempty"`
+	CertificateConfiguration *string `json:"certificate_configuration,omitempty"`
+	FileConfiguration        *string `json:"file_configuration,omitempty"`
+}
+
+// optionalConfigurationFile is a configuration file which only gets overwritten if it is part of a configuration push
+type optionalConfigurationFile struct {
+	description string
+	field       **string
+	read        func() []byte
+	save        func([]byte) error
+}
+
+func (w *handler) optionalConfigurationFiles(r *configurationPush) []optionalConfigurationFile {
+	return []optionalConfigurationFile{
+		{"logfile", &r.LogfileConfiguration, w.Configuration.ReadLogfileConfiguration, w.Configuration.SaveLogfileConfiguration},
+		{"certificate", &r.CertificateConfiguration, w.Configuration.ReadCertificateConfiguration, w.Configuration.SaveCertificateConfiguration},
+		{"file", &r.FileConfiguration, w.Configuration.ReadFileConfiguration, w.Configuration.SaveFileConfiguration},
+	}
 }
 
 func (w *handler) handleConfigRead(response http.ResponseWriter, request *http.Request) {
@@ -265,9 +283,10 @@ func (w *handler) handleConfigRead(response http.ResponseWriter, request *http.R
 	data = w.Configuration.ReadPrometheusExporterConfiguration()
 	r.PrometheusExporterConfiguration = base64.StdEncoding.EncodeToString(data)
 
-	data = w.Configuration.ReadLogfileConfiguration()
-	logfileData := base64.StdEncoding.EncodeToString(data)
-	r.LogfileConfiguration = &logfileData
+	for _, file := range w.optionalConfigurationFiles(&r) {
+		encoded := base64.StdEncoding.EncodeToString(file.read())
+		*file.field = &encoded
+	}
 
 	data, err = json.Marshal(&r)
 	if err != nil {
@@ -327,11 +346,14 @@ func (w *handler) handleConfigPush(response http.ResponseWriter, request *http.R
 		return
 	}
 
-	var logfileData []byte
-	if r.LogfileConfiguration != nil {
-		logfileData, err = base64.StdEncoding.DecodeString(*r.LogfileConfiguration)
-		if err != nil {
-			log.Errorln("Webserver: Could not decode logfile configuration string for configuration push: ", err)
+	optionalFiles := w.optionalConfigurationFiles(&r)
+	optionalData := make([][]byte, len(optionalFiles))
+	for i, file := range optionalFiles {
+		if *file.field == nil {
+			continue
+		}
+		if optionalData[i], err = base64.StdEncoding.DecodeString(**file.field); err != nil {
+			log.Errorln("Webserver: Could not decode ", file.description, " configuration string for configuration push: ", err)
 			http.Error(response, "invalid json or base64 string", http.StatusInternalServerError)
 			return
 		}
@@ -355,9 +377,12 @@ func (w *handler) handleConfigPush(response http.ResponseWriter, request *http.R
 		log.Errorln("Webserver: ", err)
 	}
 
-	// Only overwrite the logfile configuration if it was part of the request
-	if r.LogfileConfiguration != nil {
-		if err := w.Configuration.SaveLogfileConfiguration(logfileData); err != nil {
+	// Optional configuration files only get overwritten if they were part of the request
+	for i, file := range optionalFiles {
+		if *file.field == nil {
+			continue
+		}
+		if err := file.save(optionalData[i]); err != nil {
 			log.Errorln("Webserver: ", err)
 		}
 	}

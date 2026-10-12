@@ -665,6 +665,8 @@ def package_linux() {
         sh 'cp example/customchecks_example.ini package/etc/openitcockpit-agent/customchecks.ini'
         sh 'cp example/prometheus_exporters_example.ini package/etc/openitcockpit-agent/prometheus_exporters.ini'
         sh 'cp example/logfiles_example.ini package/etc/openitcockpit-agent/logfiles.ini'
+        sh 'cp example/certificates_example.ini package/etc/openitcockpit-agent/certificates.ini'
+        sh 'cp example/files_example.ini package/etc/openitcockpit-agent/files.ini'
         sh 'cp build/package/openitcockpit-agent.init package/etc/openitcockpit-agent/init/openitcockpit-agent.init'
         sh 'cp build/package/openitcockpit-agent.service package/etc/openitcockpit-agent/init/openitcockpit-agent.service'
         sh "cp release/linux/$GOARCH/$BINNAME package/usr/bin/$BINNAME"
