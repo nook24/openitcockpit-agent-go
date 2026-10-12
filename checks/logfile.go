@@ -234,11 +234,15 @@ func (s *logfileState) update(ctx context.Context, d *config.LogfileDefinition) 
 }
 
 func truncateLogLine(line string) string {
-	if len(line) <= logfileMaxLineLength {
+	return truncateLogLineTo(line, logfileMaxLineLength)
+}
+
+func truncateLogLineTo(line string, maxLength int) string {
+	if len(line) <= maxLength {
 		return line
 	}
 	// Do not cut a multi byte character in half
-	cut := logfileMaxLineLength
+	cut := maxLength
 	for cut > 0 && !utf8.RuneStart(line[cut]) {
 		cut--
 	}
