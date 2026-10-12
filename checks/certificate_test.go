@@ -195,11 +195,13 @@ func TestCheckCertificateChainAndHostname(t *testing.T) {
 func TestCheckCertificateVerifyErrors(t *testing.T) {
 	p := newTestPKI(t)
 
-	// Root CA is not trusted by the operating system
+	// Root CA is not trusted by the operating system.
+	// The error message depends on the platform verifier, e.g. "x509: certificate signed by unknown authority" (Linux)
+	// or "x509: “Test Intermediate CA” certificate is not trusted" (macOS)
 	res := runCertificateCheckOK(t, &config.CertificateDefinition{Type: config.CertificateTypeFile, Path: p.fullchain})
 	certificate := res.Certificates[0]
-	if certificate.Verified || !strings.Contains(certificate.VerifyError, "unknown authority") {
-		t.Errorf("expected unknown authority error: %+v", certificate)
+	if certificate.Verified || !strings.HasPrefix(certificate.VerifyError, "x509: ") {
+		t.Errorf("expected verify error: %+v", certificate)
 	}
 	if certificate.HostnameMatch != nil {
 		t.Error("hostname_match must be null without hostname")
@@ -359,5 +361,36 @@ func TestCheckCertificateSHA1(t *testing.T) {
 	certificate := res.Certificates[0]
 	if certificate.SignatureAlgorithm != "SHA1-RSA" || !certificate.SelfSigned {
 		t.Errorf("unexpected certificate: %+v", certificate.resultCertificateInfo)
+	}
+}
+
+func TestCheckCertificateBrokenCertificateInBundle(t *testing.T) {
+	p := newTestPKI(t)
+	broken := &pem.Block{Type: "CERTIFICATE", Bytes: []byte("broken certificate")}
+
+	// A broken certificate must not hide the other certificates of a bundle (e.g. /etc/ssl/cert.pem on macOS)
+	bundle := filepath.Join(p.dir, "bundle.pem")
+	writePEM(t, bundle, certBlock(p.root), broken, certBlock(p.intermediate))
+	res := runCertificateCheckOK(t, &config.CertificateDefinition{Type: config.CertificateTypeFile, Path: bundle, SplitBundle: true, SkipVerify: true})
+	if len(res.Certificates) != 2 {
+		t.Errorf("expected 2 certificates: %+v", res.Certificates)
+	}
+	if len(res.Warnings) != 1 || !strings.Contains(res.Warnings[0], "skipped certificate #2") {
+		t.Errorf("expected warning for the broken certificate: %+v", res.Warnings)
+	}
+
+	// Broken certificate in the chain
+	chain := filepath.Join(p.dir, "chain.pem")
+	writePEM(t, chain, certBlock(p.leaf), broken)
+	res = runCertificateCheckOK(t, &config.CertificateDefinition{Type: config.CertificateTypeFile, Path: chain, SkipVerify: true})
+	if len(res.Certificates) != 1 || res.Certificates[0].Subject != "CN=www.example.com" || len(res.Warnings) != 1 {
+		t.Errorf("expected the leaf certificate and a warning: %+v %+v", res.Certificates, res.Warnings)
+	}
+
+	// The monitored (first) certificate is broken
+	brokenLeaf := filepath.Join(p.dir, "broken-leaf.pem")
+	writePEM(t, brokenLeaf, broken, certBlock(p.intermediate))
+	if r, ok := runCertificateCheck(t, &config.CertificateDefinition{Type: config.CertificateTypeFile, Path: brokenLeaf, SkipVerify: true}).(map[string]string); !ok || !strings.Contains(r["error"], "skipped certificate #1") {
+		t.Errorf("expected error for the broken first certificate: %+v", r)
 	}
 }

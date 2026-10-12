@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -164,7 +165,11 @@ func analyzeCertificate(candidate *certificateCandidate, d *config.CertificateDe
 	}
 
 	chain := candidate.intermediates
-	if d.SkipVerify {
+	// On macOS Go verifies with the SSL server policy of the Security framework, which never accepts a
+	// CA certificate as server certificate ("certificate is not permitted for this usage").
+	// So a monitored CA certificate (e.g. of a CA bundle) can only be checked for expiry and weak cryptography.
+	caOnDarwin := runtime.GOOS == "darwin" && candidate.certificate.IsCA && roots == nil
+	if d.SkipVerify || caOnDarwin {
 		res.VerifySkipped = true
 	} else {
 		intermediates := x509.NewCertPool()
@@ -270,16 +275,23 @@ func loadCertificateFiles(pattern string, splitBundle bool) ([]*certificateCandi
 			continue
 		}
 
-		certificates, err := parseCertificateFile(path)
+		certificates, skipped, firstSkipped, err := parseCertificateFile(path)
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("%s: %s", path, err))
 			continue
+		}
+		for _, reason := range skipped {
+			warnings = append(warnings, fmt.Sprintf("%s: skipped %s", path, reason))
 		}
 
 		if splitBundle {
 			for _, certificate := range certificates {
 				candidates = append(candidates, &certificateCandidate{certificate: certificate, source: path})
 			}
+			continue
+		}
+		if firstSkipped {
+			// The monitored certificate is the first certificate of the file, the remaining certificates are only its chain
 			continue
 		}
 		candidates = append(candidates, &certificateCandidate{
@@ -298,14 +310,16 @@ func loadCertificateFiles(pattern string, splitBundle bool) ([]*certificateCandi
 	return candidates, warnings, nil
 }
 
-// parseCertificateFile parses PEM files (also with private keys) and DER encoded files
-func parseCertificateFile(path string) ([]*x509.Certificate, error) {
+// parseCertificateFile parses PEM files (also with private keys) and DER encoded files.
+// Certificates which can not be parsed (e.g. with a negative serial number) are skipped, so a single
+// broken certificate does not hide all other certificates of a bundle.
+func parseCertificateFile(path string) (certificates []*x509.Certificate, skipped []string, firstSkipped bool, err error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, false, err
 	}
 
-	var certificates []*x509.Certificate
+	index := 0
 	rest := data
 	for {
 		var block *pem.Block
@@ -317,23 +331,29 @@ func parseCertificateFile(path string) ([]*x509.Certificate, error) {
 			// e.g. a private key in a combined PEM file
 			continue
 		}
+		index++
 		certificate, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			return nil, err
+			skipped = append(skipped, fmt.Sprintf("certificate #%d: %s", index, err))
+			firstSkipped = firstSkipped || index == 1
+			continue
 		}
 		certificates = append(certificates, certificate)
 	}
 
-	if len(certificates) == 0 && !strings.Contains(string(data), "-----BEGIN") {
+	if index == 0 && !strings.Contains(string(data), "-----BEGIN") {
 		// Not a PEM file, try DER encoding
 		if certificates, err = x509.ParseCertificates(data); err != nil {
-			return nil, fmt.Errorf("no certificate found")
+			return nil, nil, false, fmt.Errorf("no certificate found")
 		}
 	}
 	if len(certificates) == 0 {
-		return nil, fmt.Errorf("no certificate found")
+		if len(skipped) > 0 {
+			return nil, nil, false, fmt.Errorf("no valid certificate found: %s", strings.Join(skipped, "; "))
+		}
+		return nil, nil, false, fmt.Errorf("no certificate found")
 	}
-	return certificates, nil
+	return certificates, skipped, firstSkipped, nil
 }
 
 func loadRootCertificates(path string) (*x509.CertPool, error) {
