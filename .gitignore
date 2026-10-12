@@ -38,6 +38,8 @@ vendor/
 /logfiles.ini
 /certificates.ini
 /files.ini
+/http.ini
+/perfcounters.ini
 /__debug_bin
 /agent.log
 /auth.json

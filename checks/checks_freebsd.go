@@ -18,5 +18,6 @@ func getPlatformChecks() []Check {
 		&CheckLogfile{},
 		&CheckCertificate{},
 		&CheckFile{},
+		&CheckHTTP{},
 	}
 }

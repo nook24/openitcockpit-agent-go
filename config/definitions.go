@@ -1,9 +1,13 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/go-viper/encoding/ini"
@@ -54,6 +58,7 @@ type LogfileDefinition struct {
 const (
 	CertificateTypeFile         = "file"
 	CertificateTypeWindowsStore = "windows_store"
+	CertificateTypeTLS          = "tls"
 )
 
 // Supported types of a FileDefinition
@@ -66,15 +71,21 @@ const (
 type CertificateDefinition struct {
 	Name    string `mapstructure:"-"`
 	Enabled bool   `mapstructure:"enabled"`
-	// file (all platforms) or windows_store (Windows)
+	// file (all platforms), tls (all platforms) or windows_store (Windows)
 	Type string `mapstructure:"type"`
 	// file: Path or glob pattern of PEM or DER encoded certificate files
 	Path string `mapstructure:"path"`
 	// windows_store: Certificate store like LocalMachine\My or CurrentUser\My
 	Store string `mapstructure:"store"`
+	// tls: Address of a TLS endpoint like mail.example.com:993
+	Address string `mapstructure:"address"`
+	// tls: Server name for SNI. Default: host of the address
+	ServerName string `mapstructure:"servername"`
+	// tls: Connection timeout in seconds
+	Timeout int64 `mapstructure:"timeout"`
 	// Regular expression to filter certificates by subject or DNS names
 	Subject string `mapstructure:"subject"`
-	// Verify that the certificate is valid for this hostname
+	// Verify that the certificate is valid for this hostname. tls: Default is the server name
 	Hostname string `mapstructure:"hostname"`
 	// PEM file with additional trusted root certificates (e.g. an internal CA)
 	CAFile string `mapstructure:"ca_file"`
@@ -106,6 +117,48 @@ type FileDefinition struct {
 	Recursive bool `mapstructure:"recursive"`
 	// directory: Stop after this number of files to protect the agent from huge directories
 	MaxFiles int64 `mapstructure:"max_files"`
+
+	// ConfigError is set if the definition is invalid. The check will report it as error
+	ConfigError string `mapstructure:"-"`
+}
+
+// HTTPDefinition describes an HTTP(S) endpoint which should be monitored
+type HTTPDefinition struct {
+	Name    string `mapstructure:"-"`
+	Enabled bool   `mapstructure:"enabled"`
+	URL     string `mapstructure:"url"`
+	// GET, HEAD or POST. Default: GET
+	Method string `mapstructure:"method"`
+	// Timeout of the whole request in seconds. Default: 10
+	Timeout int64 `mapstructure:"timeout"`
+	// Comma separated list of status codes and ranges, e.g. "200-299,301". Default: 200-399
+	ExpectedStatus string `mapstructure:"expected_status"`
+	// Regular expression the response body has to match (optional)
+	Match string `mapstructure:"match"`
+	// Follow redirects. Default: true
+	FollowRedirects *bool `mapstructure:"follow_redirects"`
+	// Do not verify the TLS certificate
+	SkipVerify bool `mapstructure:"skip_verify"`
+	// Basic authentication (optional)
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	// Value of the Host header, e.g. to check a virtual host by IP address (optional)
+	HostHeader string `mapstructure:"host_header"`
+	// HTTP proxy, e.g. http://proxy.example.com:3128. By default no proxy is used
+	Proxy string `mapstructure:"proxy"`
+
+	MatchRegexp          *regexp.Regexp `json:"-" mapstructure:"-"`
+	ExpectedStatusRanges [][2]int       `json:"-" mapstructure:"-"`
+	// ConfigError is set if the definition is invalid. The check will report it as error
+	ConfigError string `mapstructure:"-"`
+}
+
+// PerfCounterDefinition describes a Windows performance counter which should be monitored
+type PerfCounterDefinition struct {
+	Name    string `mapstructure:"-"`
+	Enabled bool   `mapstructure:"enabled"`
+	// English counter path, e.g. \Processor(_Total)\% Processor Time or \Processor(*)\% Processor Time
+	Counter string `mapstructure:"counter"`
 
 	// ConfigError is set if the definition is invalid. The check will report it as error
 	ConfigError string `mapstructure:"-"`
@@ -260,6 +313,16 @@ func (d *CertificateDefinition) validate() error {
 		if strings.TrimSpace(d.Store) == "" {
 			d.Store = `LocalMachine\My`
 		}
+	case CertificateTypeTLS:
+		if strings.TrimSpace(d.Address) == "" {
+			return fmt.Errorf("missing address in certificate definition: %s", d.Name)
+		}
+		if _, _, err := net.SplitHostPort(d.Address); err != nil {
+			return fmt.Errorf("invalid address '%s' in certificate definition %s, expected host:port: %s", d.Address, d.Name, err)
+		}
+		if d.Timeout <= 0 {
+			d.Timeout = 10
+		}
 	default:
 		return fmt.Errorf("unknown type '%s' in certificate definition: %s", d.Type, d.Name)
 	}
@@ -314,6 +377,122 @@ func (d *FileDefinition) validate() error {
 	return nil
 }
 
+func unmarshalHTTP(configPath string) ([]*HTTPDefinition, error) {
+	cfg, err := readIniSections[HTTPDefinition](configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	definitions := make([]*HTTPDefinition, 0)
+	for name, definition := range cfg {
+		if !definition.Enabled {
+			continue
+		}
+		definition.Name = name
+
+		// Invalid definitions are kept, so the check can report the error for the affected definition only
+		if err := definition.validate(); err != nil {
+			definition.ConfigError = err.Error()
+			logInvalidDefinition("http definition", name, err)
+		}
+		definitions = append(definitions, definition)
+	}
+	return definitions, nil
+}
+
+func (d *HTTPDefinition) validate() error {
+	d.URL = strings.TrimSpace(d.URL)
+	parsed, err := url.Parse(d.URL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("invalid url '%s' in http definition %s, expected http:// or https://", d.URL, d.Name)
+	}
+
+	d.Method = strings.ToUpper(strings.TrimSpace(d.Method))
+	if d.Method == "" {
+		d.Method = "GET"
+	}
+	if d.Method != "GET" && d.Method != "HEAD" && d.Method != "POST" {
+		return fmt.Errorf("unsupported method '%s' in http definition %s", d.Method, d.Name)
+	}
+
+	if d.Timeout <= 0 {
+		d.Timeout = 10
+	}
+	if d.FollowRedirects == nil {
+		followRedirects := true
+		d.FollowRedirects = &followRedirects
+	}
+
+	if strings.TrimSpace(d.ExpectedStatus) == "" {
+		d.ExpectedStatus = "200-399"
+	}
+	if d.ExpectedStatusRanges, err = parseStatusRanges(d.ExpectedStatus); err != nil {
+		return fmt.Errorf("invalid expected_status in http definition %s: %s", d.Name, err)
+	}
+
+	if d.Match != "" {
+		if d.MatchRegexp, err = regexp.Compile(d.Match); err != nil {
+			return fmt.Errorf("invalid match regex in http definition %s: %s", d.Name, err)
+		}
+	}
+
+	if d.Proxy != "" {
+		if _, err := url.Parse(d.Proxy); err != nil {
+			return fmt.Errorf("invalid proxy in http definition %s: %s", d.Name, err)
+		}
+	}
+	return nil
+}
+
+// parseStatusRanges parses a list like "200-299,301" into ranges
+func parseStatusRanges(value string) ([][2]int, error) {
+	var ranges [][2]int
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		bounds := strings.SplitN(part, "-", 2)
+		from, err := strconv.Atoi(strings.TrimSpace(bounds[0]))
+		if err != nil {
+			return nil, fmt.Errorf("invalid status code '%s'", part)
+		}
+		to := from
+		if len(bounds) == 2 {
+			if to, err = strconv.Atoi(strings.TrimSpace(bounds[1])); err != nil || to < from {
+				return nil, fmt.Errorf("invalid status code range '%s'", part)
+			}
+		}
+		ranges = append(ranges, [2]int{from, to})
+	}
+	if len(ranges) == 0 {
+		return nil, fmt.Errorf("no status code defined")
+	}
+	return ranges, nil
+}
+
+func unmarshalPerfCounters(configPath string) ([]*PerfCounterDefinition, error) {
+	cfg, err := readIniSections[PerfCounterDefinition](configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	definitions := make([]*PerfCounterDefinition, 0)
+	for name, definition := range cfg {
+		if !definition.Enabled {
+			continue
+		}
+		definition.Name = name
+		definition.Counter = strings.TrimSpace(definition.Counter)
+		if !strings.HasPrefix(definition.Counter, `\`) {
+			definition.ConfigError = fmt.Sprintf("invalid counter '%s' in perfcounter definition %s, expected e.g. \\Processor(_Total)\\%% Processor Time", definition.Counter, name)
+			logInvalidDefinition("perfcounter definition", name, errors.New(definition.ConfigError))
+		}
+		definitions = append(definitions, definition)
+	}
+	return definitions, nil
+}
+
 // readOptionalFile returns the content of a file or an empty slice if the file does not exist
 func readOptionalFile(path string) []byte {
 	data, err := os.ReadFile(path)
@@ -344,6 +523,22 @@ func (c *Configuration) ReadCertificateConfiguration() []byte {
 
 func (c *Configuration) SaveCertificateConfiguration(config []byte) error {
 	return saveOptionalFile(c.CertificatesFilePath, config)
+}
+
+func (c *Configuration) ReadHTTPConfiguration() []byte {
+	return readOptionalFile(c.HTTPFilePath)
+}
+
+func (c *Configuration) SaveHTTPConfiguration(config []byte) error {
+	return saveOptionalFile(c.HTTPFilePath, config)
+}
+
+func (c *Configuration) ReadPerfCounterConfiguration() []byte {
+	return readOptionalFile(c.PerfCountersFilePath)
+}
+
+func (c *Configuration) SavePerfCounterConfiguration(config []byte) error {
+	return saveOptionalFile(c.PerfCountersFilePath, config)
 }
 
 func (c *Configuration) ReadFileConfiguration() []byte {

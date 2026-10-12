@@ -726,3 +726,51 @@ func TestReadCertificatesAndFilesConfig(t *testing.T) {
 		t.Error("unexpected content of the configuration files")
 	}
 }
+
+func TestReadHTTPConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "http.ini")
+	content := `[intranet]
+  url = https://intranet.example.com/health
+  match = (?i)healthy
+  enabled = true
+[api]
+  url = http://127.0.0.1:8080/api/status
+  method = head
+  expected_status = 200-299, 301
+  follow_redirects = false
+  timeout = 3
+  enabled = true
+[invalid_url]
+  url = ftp://example.com
+  enabled = true
+[invalid_status]
+  url = http://example.com
+  expected_status = 500-200
+  enabled = true
+`
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	definitions, err := unmarshalHTTP(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]*HTTPDefinition{}
+	for _, d := range definitions {
+		byName[d.Name] = d
+	}
+
+	if d := byName["intranet"]; d.ConfigError != "" || d.Method != "GET" || d.Timeout != 10 || !*d.FollowRedirects || d.ExpectedStatus != "200-399" || d.MatchRegexp == nil {
+		t.Errorf("unexpected defaults: %+v", d)
+	}
+	if d := byName["api"]; d.ConfigError != "" || d.Method != "HEAD" || d.Timeout != 3 || *d.FollowRedirects || fmt.Sprint(d.ExpectedStatusRanges) != "[[200 299] [301 301]]" {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if !strings.Contains(byName["invalid_url"].ConfigError, "invalid url") {
+		t.Error("expected invalid url error")
+	}
+	if !strings.Contains(byName["invalid_status"].ConfigError, "invalid expected_status") {
+		t.Error("expected invalid status error")
+	}
+}

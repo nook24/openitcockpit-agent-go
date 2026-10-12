@@ -239,6 +239,8 @@ type configurationPush struct {
 	LogfileConfiguration     *string `json:"logfile_configuration,omitempty"`
 	CertificateConfiguration *string `json:"certificate_configuration,omitempty"`
 	FileConfiguration        *string `json:"file_configuration,omitempty"`
+	HTTPConfiguration        *string `json:"http_configuration,omitempty"`
+	PerfCounterConfiguration *string `json:"perfcounter_configuration,omitempty"`
 }
 
 // optionalConfigurationFile is a configuration file which only gets overwritten if it is part of a configuration push
@@ -254,6 +256,8 @@ func (w *handler) optionalConfigurationFiles(r *configurationPush) []optionalCon
 		{"logfile", &r.LogfileConfiguration, w.Configuration.ReadLogfileConfiguration, w.Configuration.SaveLogfileConfiguration},
 		{"certificate", &r.CertificateConfiguration, w.Configuration.ReadCertificateConfiguration, w.Configuration.SaveCertificateConfiguration},
 		{"file", &r.FileConfiguration, w.Configuration.ReadFileConfiguration, w.Configuration.SaveFileConfiguration},
+		{"http", &r.HTTPConfiguration, w.Configuration.ReadHTTPConfiguration, w.Configuration.SaveHTTPConfiguration},
+		{"perfcounter", &r.PerfCounterConfiguration, w.Configuration.ReadPerfCounterConfiguration, w.Configuration.SavePerfCounterConfiguration},
 	}
 }
 

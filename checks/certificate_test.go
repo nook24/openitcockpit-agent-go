@@ -7,11 +7,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
 	"math/big"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -392,5 +394,83 @@ func TestCheckCertificateBrokenCertificateInBundle(t *testing.T) {
 	writePEM(t, brokenLeaf, broken, certBlock(p.intermediate))
 	if r, ok := runCertificateCheck(t, &config.CertificateDefinition{Type: config.CertificateTypeFile, Path: brokenLeaf, SkipVerify: true}).(map[string]string); !ok || !strings.Contains(r["error"], "skipped certificate #1") {
 		t.Errorf("expected error for the broken first certificate: %+v", r)
+	}
+}
+
+func startTestTLSServer(t *testing.T, p *testPKI, maxVersion uint16) string {
+	t.Helper()
+	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+		Certificates: []tls.Certificate{{
+			Certificate: [][]byte{p.leaf.certificate.Raw, p.intermediate.certificate.Raw},
+			PrivateKey:  p.leaf.key,
+		}},
+		MinVersion: tls.VersionTLS12,
+		MaxVersion: maxVersion,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				_ = conn.(*tls.Conn).Handshake()
+				conn.Close()
+			}()
+		}
+	}()
+	return listener.Addr().String()
+}
+
+func TestCheckCertificateTLSEndpoint(t *testing.T) {
+	p := newTestPKI(t)
+	address := startTestTLSServer(t, p, tls.VersionTLS12)
+
+	// SNI and hostname check with the server name
+	res := runCertificateCheckOK(t, &config.CertificateDefinition{
+		Type: config.CertificateTypeTLS, Address: address, ServerName: "example.com", CAFile: p.caFile, Timeout: 5,
+	})
+	if len(res.Certificates) != 1 {
+		t.Fatalf("expected 1 certificate: %+v", res)
+	}
+	certificate := res.Certificates[0]
+	if certificate.Subject != "CN=www.example.com" || certificate.Source != address || !certificate.Verified {
+		t.Errorf("unexpected certificate: %+v", certificate)
+	}
+	if certificate.Hostname != "example.com" || certificate.HostnameMatch == nil || !*certificate.HostnameMatch {
+		t.Errorf("hostname should match the server name: %+v", certificate)
+	}
+	if certificate.TLSVersion != "TLS 1.2" || certificate.CipherSuite == "" {
+		t.Errorf("unexpected TLS information: %s %s", certificate.TLSVersion, certificate.CipherSuite)
+	}
+	if len(certificate.Chain) != 2 || certificate.Chain[0].Subject != "CN=Test Intermediate CA" {
+		t.Errorf("unexpected chain: %+v", certificate.Chain)
+	}
+
+	// IP address without server name: no hostname check
+	res = runCertificateCheckOK(t, &config.CertificateDefinition{Type: config.CertificateTypeTLS, Address: address, SkipVerify: true, Timeout: 5})
+	if certificate = res.Certificates[0]; certificate.Hostname != "" || certificate.HostnameMatch != nil {
+		t.Errorf("no hostname check expected for an IP address: %+v", certificate)
+	}
+
+	// Wrong server name
+	res = runCertificateCheckOK(t, &config.CertificateDefinition{Type: config.CertificateTypeTLS, Address: address, ServerName: "mail.example.com", CAFile: p.caFile, Timeout: 5})
+	if match := res.Certificates[0].HostnameMatch; match == nil || *match {
+		t.Error("hostname must not match")
+	}
+
+	// Closed port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed := listener.Addr().String()
+	listener.Close()
+	if r, ok := runCertificateCheck(t, &config.CertificateDefinition{Type: config.CertificateTypeTLS, Address: closed, Timeout: 2}).(map[string]string); !ok || !strings.Contains(r["error"], "could not connect") {
+		t.Errorf("expected connection error: %+v", r)
 	}
 }

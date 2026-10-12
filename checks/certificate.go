@@ -7,11 +7,13 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/sha1"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -58,7 +60,9 @@ type resultCertificate struct {
 	VerifySkipped bool                     `json:"verify_skipped"` // skip_verify is enabled
 	VerifyError   string                   `json:"verify_error"`
 	Hostname      string                   `json:"hostname"`
-	HostnameMatch *bool                    `json:"hostname_match"` // null if no hostname is configured
+	HostnameMatch *bool                    `json:"hostname_match"`         // null if no hostname is configured
+	TLSVersion    string                   `json:"tls_version,omitempty"`  // tls only: Negotiated TLS version, e.g. TLS 1.3
+	CipherSuite   string                   `json:"cipher_suite,omitempty"` // tls only: Negotiated cipher suite
 }
 
 type resultCertificates struct {
@@ -72,6 +76,9 @@ type certificateCandidate struct {
 	certificate   *x509.Certificate
 	intermediates []*x509.Certificate
 	source        string
+	// tls only
+	tlsVersion  string
+	cipherSuite string
 }
 
 // Run the actual check
@@ -114,6 +121,11 @@ func checkCertificateDefinition(ctx context.Context, d *config.CertificateDefini
 	switch d.Type {
 	case config.CertificateTypeFile:
 		candidates, warnings, err = loadCertificateFiles(d.Path, d.SplitBundle)
+	case config.CertificateTypeTLS:
+		var candidate *certificateCandidate
+		if candidate, err = loadTLSEndpoint(ctx, d); err == nil {
+			candidates = append(candidates, candidate)
+		}
 	case config.CertificateTypeWindowsStore:
 		var certificates []*x509.Certificate
 		certificates, warnings, err = readWindowsCertificateStore(d.Store)
@@ -152,16 +164,18 @@ func checkCertificateDefinition(ctx context.Context, d *config.CertificateDefini
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		res.Certificates = append(res.Certificates, analyzeCertificate(candidate, d, roots, now))
+		res.Certificates = append(res.Certificates, analyzeCertificate(candidate, d, certificateHostname(d), roots, now))
 	}
 	return res, nil
 }
 
-func analyzeCertificate(candidate *certificateCandidate, d *config.CertificateDefinition, roots *x509.CertPool, now time.Time) *resultCertificate {
+func analyzeCertificate(candidate *certificateCandidate, d *config.CertificateDefinition, hostname string, roots *x509.CertPool, now time.Time) *resultCertificate {
 	res := &resultCertificate{
 		resultCertificateInfo: *certificateInfo(candidate.certificate, now),
 		Source:                candidate.source,
-		Hostname:              d.Hostname,
+		Hostname:              hostname,
+		TLSVersion:            candidate.tlsVersion,
+		CipherSuite:           candidate.cipherSuite,
 	}
 
 	chain := candidate.intermediates
@@ -198,12 +212,74 @@ func analyzeCertificate(candidate *certificateCandidate, d *config.CertificateDe
 		res.Chain = append(res.Chain, certificateInfo(certificate, now))
 	}
 
-	if d.Hostname != "" {
-		match := candidate.certificate.VerifyHostname(d.Hostname) == nil
+	if hostname != "" {
+		match := candidate.certificate.VerifyHostname(hostname) == nil
 		res.HostnameMatch = &match
 	}
 
 	return res
+}
+
+// certificateHostname returns the hostname the certificate must be valid for
+func certificateHostname(d *config.CertificateDefinition) string {
+	if d.Hostname != "" || d.Type != config.CertificateTypeTLS {
+		return d.Hostname
+	}
+	// A TLS endpoint has to be valid for the server name it was connected to
+	serverName := tlsServerName(d)
+	if net.ParseIP(serverName) != nil {
+		return ""
+	}
+	return serverName
+}
+
+func tlsServerName(d *config.CertificateDefinition) string {
+	if d.ServerName != "" {
+		return d.ServerName
+	}
+	host, _, _ := net.SplitHostPort(d.Address)
+	return host
+}
+
+// loadTLSEndpoint connects to a TLS endpoint and returns the certificates sent by the server
+func loadTLSEndpoint(ctx context.Context, d *config.CertificateDefinition) (*certificateCandidate, error) {
+	timeout := time.Duration(d.Timeout) * time.Second
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	serverName := tlsServerName(d)
+	if net.ParseIP(serverName) != nil {
+		// SNI does not support IP addresses
+		serverName = ""
+	}
+
+	dialer := &tls.Dialer{
+		NetDialer: &net.Dialer{Timeout: timeout},
+		Config: &tls.Config{
+			ServerName: serverName,
+			// The certificates get verified by analyzeCertificate, so expired or untrusted certificates can be reported
+			InsecureSkipVerify: true, // #nosec G402
+			// Allow old TLS versions, so servers which do not support TLS 1.2 can be reported as weak
+			MinVersion: tls.VersionTLS10,
+		},
+	}
+	conn, err := dialer.DialContext(ctx, "tcp", d.Address)
+	if err != nil {
+		return nil, fmt.Errorf("could not connect to %s: %s", d.Address, err)
+	}
+	defer conn.Close()
+
+	state := conn.(*tls.Conn).ConnectionState()
+	if len(state.PeerCertificates) == 0 {
+		return nil, fmt.Errorf("%s did not send a certificate", d.Address)
+	}
+	return &certificateCandidate{
+		certificate:   state.PeerCertificates[0],
+		intermediates: state.PeerCertificates[1:],
+		source:        d.Address,
+		tlsVersion:    tls.VersionName(state.Version),
+		cipherSuite:   tls.CipherSuiteName(state.CipherSuite),
+	}, nil
 }
 
 func certificateInfo(certificate *x509.Certificate, now time.Time) *resultCertificateInfo {

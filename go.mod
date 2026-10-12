@@ -7,6 +7,7 @@ require (
 	github.com/coreos/go-systemd/v22 v22.6.0
 	github.com/distatus/battery v0.11.0
 	github.com/docker/docker v28.5.2+incompatible
+	github.com/go-ole/go-ole v1.3.0
 	github.com/go-viper/encoding/ini v0.1.1
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.6.0
@@ -38,7 +39,6 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

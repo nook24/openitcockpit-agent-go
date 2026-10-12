@@ -100,6 +100,8 @@ type Configuration struct {
 	LogfilesFilePath     string `mapstructure:"logfiles"`
 	CertificatesFilePath string `mapstructure:"certificates"`
 	FilesFilePath        string `mapstructure:"files"`
+	HTTPFilePath         string `mapstructure:"http"`
+	PerfCountersFilePath string `mapstructure:"perfcounters"`
 
 	// EnablePPROF for debugging memory leaks with the go tool pprof command
 	EnablePPROF bool `mapstructure:"enable-dev-pprof"`
@@ -122,12 +124,14 @@ type Configuration struct {
 	User            bool  `mapstructure:"userstats"`
 	WindowsServices bool  `mapstructure:"winservices"`
 	WindowsEventLog bool  `mapstructure:"wineventlog"`
+	WindowsTasks    bool  `mapstructure:"winscheduledtasks"`
 	SystemdServices bool  `mapstructure:"systemdservices"`
 	LaunchdServices bool  `mapstructure:"launchdservices"`
 	Alfresco        bool  `mapstructure:"alfrescostats"`
 	Libvirt         bool  `mapstructure:"libvirt"`
 	Ntp             bool  `mapstructure:"ntp"`
 	SystemHealth    bool  `mapstructure:"systemhealth"`
+	Security        bool  `mapstructure:"security"`
 
 	// Alfresco
 
@@ -138,6 +142,9 @@ type Configuration struct {
 	JmxPath     string `mapstructure:"alfresco-jmxpath"`
 	JmxQuery    string `mapstructure:"alfresco-jmxquery"`
 	JavaPath    string `mapstructure:"alfresco-javapath"`
+
+	// Windows scheduled tasks: Also report the tasks of the \Microsoft\ folder
+	WindowsTasksIncludeMicrosoft bool `mapstructure:"winscheduledtasks-include-microsoft"`
 
 	// WindowsEventLog with all event log types to monitor
 
@@ -158,6 +165,8 @@ type Configuration struct {
 	LogfileConfiguration     []*LogfileDefinition     `json:"logfiles_configuration" mapstructure:"-"`
 	CertificateConfiguration []*CertificateDefinition `json:"certificates_configuration" mapstructure:"-"`
 	FileConfiguration        []*FileDefinition        `json:"files_configuration" mapstructure:"-"`
+	HTTPConfiguration        []*HTTPDefinition        `json:"http_configuration" mapstructure:"-"`
+	PerfCounterConfiguration []*PerfCounterDefinition `json:"perfcounter_configuration" mapstructure:"-"`
 
 	// Prometheus Exporter / Proxy
 	Prometheus                      *PrometheusConfiguration `json:"prometheus"`
@@ -184,11 +193,13 @@ var defaultValue = map[string]interface{}{
 	"userstats":            true,
 	"winservices":          true,
 	"wineventlog":          true,
+	"winscheduledtasks":    true,
 	"systemdservices":      true,
 	"alfrescostats":        true,
 	"libvirt":              true,
 	"ntp":                  true,
 	"systemhealth":         true,
+	"security":             true,
 	"wineventlog-logtypes": "System,Application",
 	"wineventlog-age":      3600,
 	"wineventlog-cache":    3600,
@@ -197,6 +208,8 @@ var defaultValue = map[string]interface{}{
 	"logfiles":             filepath.Join(platformpaths.Get().ConfigPath(), "logfiles.ini"),
 	"certificates":         filepath.Join(platformpaths.Get().ConfigPath(), "certificates.ini"),
 	"files":                filepath.Join(platformpaths.Get().ConfigPath(), "files.ini"),
+	"http":                 filepath.Join(platformpaths.Get().ConfigPath(), "http.ini"),
+	"perfcounters":         filepath.Join(platformpaths.Get().ConfigPath(), "perfcounters.ini"),
 	"tls-security-level":   "lax",
 	"autossl-folder":       platformpaths.Get().ConfigPath(),
 	"autossl-csr-file":     filepath.Join(platformpaths.Get().ConfigPath(), "agent.csr"),
@@ -279,6 +292,8 @@ func unmarshalConfiguration(v *viper.Viper) (*Configuration, error) {
 	cfg.LogfileConfiguration = loadOptionalDefinitions(cfg.LogfilesFilePath, "logfile definitions", unmarshalLogfiles)
 	cfg.CertificateConfiguration = loadOptionalDefinitions(cfg.CertificatesFilePath, "certificate definitions", unmarshalCertificates)
 	cfg.FileConfiguration = loadOptionalDefinitions(cfg.FilesFilePath, "file definitions", unmarshalFiles)
+	cfg.HTTPConfiguration = loadOptionalDefinitions(cfg.HTTPFilePath, "http definitions", unmarshalHTTP)
+	cfg.PerfCounterConfiguration = loadOptionalDefinitions(cfg.PerfCountersFilePath, "perfcounter definitions", unmarshalPerfCounters)
 
 	// Parse Prometheus Exporter configuration
 	if cfg.Prometheus.ExportersFilePath != "" && cfg.Prometheus.Enable {
