@@ -188,24 +188,40 @@ Please see the [full documentation](https://github.com/openITCOCKPIT/openitcockp
 
 ## Supported Checks
 
-| Check              | Windows | Linux     | macOS                   | FreeBSD                 |
-|--------------------|---------|-----------|-------------------------|-------------------------|
-| CPU Load           | -       | ✅         | ✅                       | ✅                       |
-| CPU Percent        | ✅       | ✅         | ✅                       | ✅                       |
-| Custom Checks      | ✅       | ✅         | ✅                       | ✅                       |
-| Disk IO            | ✅       | ✅         | ✅                       | ✅                       |
-| Disk Usage         | ✅       | ✅         | ✅                       | ✅                       |
-| Docker Container   | ✅       | ✅         | ✅                       | untested                |
-| Memory             | ✅       | ✅         | ✅                       | ✅                       |
-| Network Interfaces | ✅       | ✅         | ✅                       | ✅                       |
-| Network IO         | ✅       | ✅         | ✅                       | ✅                       |
-| NTP                | ✅       | ✅         | Only compare timestamps | Only compare timestamps |
-| Processes          | ✅       | ✅         | ✅                       | ✅                       |
-| Sensors            | -       | ✅         | ✅                       | -                       |
-| Services           | ✅       | ✅ systemd | ✅ launchd               | -                       |
-| Swap               | ✅       | ✅         | ✅                       | ✅                       |
-| Windows Event log  | ✅       | -         | -                       | -                       |
-| Users              | ✅       | ✅         | ✅                       | ✅                       |
+| Check                        | Windows                         | Linux                                                | macOS                       | FreeBSD         |
+|------------------------------|---------------------------------|------------------------------------------------------|-----------------------------|-----------------|
+| Ceph                         | -                               | ✅                                                   | -                           | -               |
+| Certificates                 | ✅ file, TLS, certificate store | ✅ file, TLS                                         | ✅ file, TLS                | ✅ file, TLS    |
+| CPU Load                     | -                               | ✅                                                   | ✅                          | ✅              |
+| CPU Percent                  | ✅                              | ✅                                                   | ✅                          | ✅              |
+| Custom Checks                | ✅                              | ✅                                                   | ✅                          | ✅              |
+| Disk IO                      | ✅                              | ✅                                                   | ✅                          | ✅              |
+| Disk Usage                   | ✅                              | ✅ incl. inodes                                      | ✅ incl. inodes             | ✅ incl. inodes |
+| Docker Container             | ✅ incl. healthchecks           | ✅ incl. healthchecks                                | ✅ incl. healthchecks       | untested        |
+| Files & Directories          | ✅                              | ✅                                                   | ✅                          | ✅              |
+| HTTP(S)                      | ✅                              | ✅                                                   | ✅                          | ✅              |
+| Logfiles                     | ✅ text files                   | ✅ text files, journald                              | ✅ text files, unified log  | ✅ text files   |
+| Memory                       | ✅                              | ✅                                                   | ✅                          | ✅              |
+| Network Interfaces           | ✅                              | ✅                                                   | ✅                          | ✅              |
+| Network IO                   | ✅                              | ✅                                                   | ✅                          | ✅              |
+| NTP                          | ✅                              | ✅                                                   | ✅ SNTP                     | ✅ ntpd, SNTP   |
+| Processes                    | ✅                              | ✅                                                   | ✅                          | ✅              |
+| Proxmox VE                   | -                               | ✅                                                   | -                           | -               |
+| S.M.A.R.T.                   | ✅ smartctl                     | ✅ smartctl                                          | ✅ smartctl                 | ✅ smartctl     |
+| Security                     | ✅ firewall, Defender/antivirus | ✅ SELinux, AppArmor                                 | ✅ FileVault, SIP, firewall | -               |
+| Sensors                      | -                               | ✅                                                   | ✅                          | -               |
+| Services                     | ✅                              | ✅ systemd                                           | ✅ launchd                  | -               |
+| Swap                         | ✅                              | ✅                                                   | ✅                          | ✅              |
+| System Health                | -                               | ✅ RAID, OOM kills, file descriptors, conntrack, PSI | -                           | -               |
+| Users                        | ✅                              | ✅                                                   | ✅                          | ✅              |
+| Windows Event log            | ✅                              | -                                                    | -                           | -               |
+| Windows Performance Counters | ✅                              | -                                                    | -                           | -               |
+| Windows Scheduled Tasks      | ✅                              | -                                                    | -                           | -               |
+| ZFS                          | -                               | ✅                                                   | -                           | ✅              |
+
+Logfiles, Certificates, Files & Directories, HTTP(S) and Windows Performance Counters are configured in separate INI files.
+See the examples in the [example](example/) directory. S.M.A.R.T. requires `smartctl` of smartmontools 7.0 or newer.
+Ceph, Proxmox VE, S.M.A.R.T. and ZFS are enabled automatically if the required tools are installed.
 
 ### Advanced Checks
 
