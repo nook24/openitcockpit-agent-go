@@ -104,6 +104,13 @@ esac
 		t.Errorf("expected the error of the ceph command, got: %v", err)
 	}
 
+	// Ceph 20 only prints "timed out" if no monitor answered within --connect-timeout
+	installFakeCommand(t, dir, "ceph", `echo "timed out" >&2; exit 1`)
+	_, err = (&CheckCeph{}).Run(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "monitors are not reachable") {
+		t.Errorf("expected a timeout error, got: %v", err)
+	}
+
 	// ceph df fails, but ceph status works: only the pools report an error
 	status := writeFixture(t, dir, "status.json", testCephStatusOctopus)
 	installFakeCommand(t, dir, "ceph", `

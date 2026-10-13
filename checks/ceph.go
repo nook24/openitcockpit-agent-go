@@ -229,7 +229,8 @@ func runCephCommand(ctx context.Context, command ...string) ([]byte, error) {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			stderr = strings.TrimSpace(string(exitError.Stderr))
 		}
-		if ctx.Err() != nil {
+		// The ceph command prints "timed out" if no monitor answered within --connect-timeout
+		if ctx.Err() != nil || stderr == "timed out" {
 			return nil, fmt.Errorf("ceph %s: timeout, the monitors are not reachable", strings.Join(command, " "))
 		}
 		return nil, fmt.Errorf("ceph %s failed: %s: %s", strings.Join(command, " "), err, stderr)

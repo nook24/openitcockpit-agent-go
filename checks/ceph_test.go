@@ -66,6 +66,10 @@ const testCephStatusOctopus = `{
   "fsmap": {"epoch": 1, "by_rank": [], "up:standby": 0}
 }`
 
+// Real ceph status -f json of a single node Tentacle cluster (Proxmox VE 9) with HEALTH_ERR:
+// one OSD down and out, the only MDS stopped, lowered full ratios and a muted health check
+const testCephStatusTentacle = `{"fsid":"47c79f49-96a9-4c95-9206-253c2db6dec9","health":{"status":"HEALTH_ERR","checks":{"FS_DEGRADED":{"severity":"HEALTH_WARN","summary":{"message":"1 filesystem is degraded","count":1},"muted":false},"FS_WITH_FAILED_MDS":{"severity":"HEALTH_WARN","summary":{"message":"1 filesystem has a failed mds daemon","count":1},"muted":false},"MDS_ALL_DOWN":{"severity":"HEALTH_ERR","summary":{"message":"1 filesystem is offline","count":1},"muted":false},"OSD_FULL":{"severity":"HEALTH_ERR","summary":{"message":"2 full osd(s)","count":2},"muted":false},"PG_DEGRADED":{"severity":"HEALTH_WARN","summary":{"message":"Degraded data redundancy: 352/1056 objects degraded (33.333%), 128 pgs degraded, 153 pgs undersized","count":281},"muted":false},"POOL_FULL":{"severity":"HEALTH_WARN","summary":{"message":"4 pool(s) full","count":4},"muted":false},"POOL_TOO_MANY_PGS":{"severity":"HEALTH_WARN","summary":{"message":"1 pools have too many placement groups","count":1},"muted":true}},"mutes":[{"code":"POOL_TOO_MANY_PGS","sticky":false,"summary":"1 pools have too many placement groups","count":1}]},"election_epoch":5,"quorum":[0],"quorum_names":["pve"],"quorum_age":10,"monmap":{"epoch":1,"min_mon_release_name":"tentacle","num_mons":1},"osdmap":{"epoch":36,"num_osds":3,"num_up_osds":2,"osd_up_since":1791917745,"num_in_osds":2,"osd_in_since":1791917801,"num_remapped_pgs":0},"pgmap":{"pgs_by_state":[{"state_name":"active+undersized+degraded","count":128},{"state_name":"active+undersized","count":25}],"num_pgs":153,"num_pools":4,"num_objects":352,"data_bytes":1372130230,"bytes_used":2836897792,"bytes_avail":40104386560,"bytes_total":42941284352,"degraded_objects":352,"degraded_total":1056,"degraded_ratio":0.33333333333333326},"fsmap":{"epoch":5,"btime":"2026-10-13T20:56:41:778802+0200","id":1,"up":0,"in":1,"max":1,"by_rank":[],"up:standby":0,"failed":1},"mgrmap":{"available":true,"num_standbys":0,"modules":["iostat","nfs","nvmeof"],"services":{}},"servicemap":{"epoch":6,"modified":"2026-10-13T20:52:38.422539+0200","services":{}},"progress_events":{}}`
+
 const testCephDf = `{
   "stats": {
     "total_bytes": 11995842968576,
@@ -142,6 +146,36 @@ func TestParseCephStatusOctopus(t *testing.T) {
 
 	if _, err := parseCephStatus([]byte("not json")); err == nil {
 		t.Error("expected error for invalid output")
+	}
+}
+
+func TestParseCephStatusTentacle(t *testing.T) {
+	result, err := parseCephStatus([]byte(testCephStatusTentacle))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	health := result["health"].(*resultCephHealth)
+	if health.Status != "HEALTH_ERR" || len(health.Checks) != 7 {
+		t.Fatalf("unexpected health: %+v", health)
+	}
+	if c := health.Checks[2]; c.Code != "MDS_ALL_DOWN" || c.Severity != "HEALTH_ERR" || c.Message != "1 filesystem is offline" {
+		t.Errorf("unexpected check: %+v", c)
+	}
+	if c := health.Checks[6]; c.Code != "POOL_TOO_MANY_PGS" || !c.Muted {
+		t.Errorf("unexpected muted check: %+v", c)
+	}
+	if m := result["monitors"].(*resultCephMonitors); m.Total != 1 || m.InQuorum != 1 || m.QuorumNames[0] != "pve" {
+		t.Errorf("unexpected monitors: %+v", m)
+	}
+	if o := result["osds"].(*resultCephOsds); o.Total != 3 || o.Up != 2 || o.In != 2 {
+		t.Errorf("unexpected osds: %+v", o)
+	}
+	if p := result["pgs"].(*resultCephPgs); p.Total != 153 || p.States["active+undersized+degraded"] != 128 || p.States["active+undersized"] != 25 {
+		t.Errorf("unexpected pgs: %+v", p)
+	}
+	if f := result["filesystems"].(*resultCephFilesystems); f.Up != 0 || f.In != 1 || f.Max != 1 || f.Standby != 0 || len(f.Mds) != 0 {
+		t.Errorf("unexpected filesystems: %+v", f)
 	}
 }
 
