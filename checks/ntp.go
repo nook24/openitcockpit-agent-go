@@ -38,15 +38,26 @@ func (c *CheckNtp) Configure(config *config.Configuration) (bool, error) {
 	return config.Ntp, nil
 }
 
-// parseNtpqOutput returns if ntpd is synchronized and the offset in seconds
+// parseNtpqOutput returns if ntpd is synchronized and the offset in seconds.
+// ntpd is synchronized if it selected a time source (sync_ntp, sync_pps, ...) and the leap indicator is not
+// "alarm" (11). Right after the start ntpd reports "leap_alarm, sync_ntp" and an offset of 0 until the clock is set.
 func parseNtpqOutput(output string) (bool, float64) {
-	syncStatus := false
+	hasSource := false
+	leapAlarm := false
 	offset := 0.0
 
 	for _, line := range strings.Split(output, ",") {
 		line = strings.TrimSpace(line)
-		if strings.Contains(line, "sync_ntp") {
-			syncStatus = true
+		for _, field := range strings.Fields(line) {
+			switch {
+			case field == "leap_alarm":
+				leapAlarm = true
+			case strings.HasPrefix(field, "sync_") && field != "sync_unspec":
+				hasSource = true
+			}
+		}
+		if line == "leap=11" {
+			leapAlarm = true
 		}
 		if strings.HasPrefix(line, "offset=") {
 			var val float64
@@ -56,5 +67,5 @@ func parseNtpqOutput(output string) (bool, float64) {
 			}
 		}
 	}
-	return syncStatus, offset
+	return hasSource && !leapAlarm, offset
 }

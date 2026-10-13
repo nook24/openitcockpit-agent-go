@@ -8,11 +8,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Configuration files of the NTP implementations available on FreeBSD
+// Configuration files of the NTP implementations available on FreeBSD.
+// /etc/ntp.conf is part of the base system and always exists, so the configuration files of the packages come first
 var freebsdNtpConfigFiles = []string{
-	"/etc/ntp.conf",              // ntpd of the base system
 	"/usr/local/etc/chrony.conf", // net/chrony
 	"/usr/local/etc/ntpd.conf",   // net/openntpd
+	"/etc/ntp.conf",              // ntpd of the base system
 }
 
 // Run the actual check

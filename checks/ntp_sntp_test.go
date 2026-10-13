@@ -172,4 +172,18 @@ expire=202606280000`
 	if !ok || offset != -0.00153421 {
 		t.Errorf("expected synchronized with offset -0.00153421 s, got %v %v", ok, offset)
 	}
+
+	// Real output of FreeBSD 15.1 five minutes after the boot: ntpd selected a source, but did not set the clock yet
+	starting := `associd=0 status=c618 leap_alarm, sync_ntp, 1 event, no_sys_peer,
+version="ntpd 4.2.8p18-a (1)", processor="amd64",
+system="FreeBSD/15.1-RELEASE", leap=11, stratum=2, precision=-15,
+rootdelay=14.912, rootdisp=3.498, refid=134.60.111.110,
+reftime=ee78f6e8.69d5c5b1  Tue, Oct 13 2026 20:28:56.413,
+clock=ee78f700.08a74aba  Tue, Oct 13 2026 20:29:20.033, peer=16905, tc=6,
+mintc=3, offset=+0.000000, frequency=+0.000, sys_jitter=0.000000,
+clk_jitter=0.000, clk_wander=0.000, leapsec=201701010000,
+expire=202606280000`
+	if ok, _ := parseNtpqOutput(starting); ok {
+		t.Error("ntpd with leap_alarm must not be synchronized")
+	}
 }
