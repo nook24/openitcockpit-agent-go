@@ -1,6 +1,9 @@
 package checks
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/config"
 )
 
@@ -21,9 +24,37 @@ type resultNtp struct {
 	SyncStatus bool    // Is synchronized with an NTP server
 	Offset     float64 // Time offset between local system and NTP server in seconds
 
+	// Only set if the offset was measured by the agent with an SNTP query (macOS)
+	NtpServer      string  `json:",omitempty"` // e.g.: time.euro.apple.com
+	NtpAddress     string  `json:",omitempty"` // IP address of the NTP server
+	Stratum        uint8   `json:",omitempty"`
+	RoundTripDelay float64 `json:",omitempty"` // Seconds
+	MeasuredAt     int64   `json:",omitempty"` // Unix timestamp of the SNTP query, the result is cached for 5 minutes
+	QueryError     string  `json:",omitempty"` // Error of the SNTP query. The openITCOCKPIT server compares the timestamps instead
 }
 
 // Configure the command or return false if the command was disabled
 func (c *CheckNtp) Configure(config *config.Configuration) (bool, error) {
 	return config.Ntp, nil
+}
+
+// parseNtpqOutput returns if ntpd is synchronized and the offset in seconds
+func parseNtpqOutput(output string) (bool, float64) {
+	syncStatus := false
+	offset := 0.0
+
+	for _, line := range strings.Split(output, ",") {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "sync_ntp") {
+			syncStatus = true
+		}
+		if strings.HasPrefix(line, "offset=") {
+			var val float64
+			_, err := fmt.Sscanf(line, "offset=%f", &val)
+			if err == nil {
+				offset = val / 1000.0 // ntpq offset is in ms, convert to seconds
+			}
+		}
+	}
+	return syncStatus, offset
 }
