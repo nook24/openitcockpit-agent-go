@@ -35,6 +35,12 @@ func TestChecksWithDefault(t *testing.T) {
 				continue
 			}
 
+			// e.g. the Ceph check is only enabled by Configure if the ceph command is installed
+			if strings.Contains(err.Error(), "executable file not found") {
+				fmt.Println(err)
+				continue
+			}
+
 			if strings.Contains(err.Error(), "/var/run/utmp: no such file or directory") {
 				// https://github.com/shirou/gopsutil/issues/900
 				fmt.Println(err)

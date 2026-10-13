@@ -22,6 +22,8 @@ func getPlatformChecks() []Check {
 		&CheckFile{},
 		&CheckHTTP{},
 		&CheckSecurity{},
+		&CheckZfs{},
+		&CheckCeph{},
 		&CheckSystemHealth{},
 	}
 

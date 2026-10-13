@@ -132,6 +132,8 @@ type Configuration struct {
 	Ntp             bool  `mapstructure:"ntp"`
 	SystemHealth    bool  `mapstructure:"systemhealth"`
 	Security        bool  `mapstructure:"security"`
+	Zfs             bool  `mapstructure:"zfs"`
+	Ceph            bool  `mapstructure:"ceph"`
 
 	// Alfresco
 
@@ -202,6 +204,8 @@ var defaultValue = map[string]interface{}{
 	"ntp":                     true,
 	"systemhealth":            true,
 	"security":                true,
+	"zfs":                     true,
+	"ceph":                    true,
 	"wineventlog-logtypes":    "System,Application",
 	"wineventlog-age":         3600,
 	"wineventlog-cache":       3600,
