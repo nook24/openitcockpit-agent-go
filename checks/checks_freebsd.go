@@ -19,5 +19,6 @@ func getPlatformChecks() []Check {
 		&CheckCertificate{},
 		&CheckFile{},
 		&CheckHTTP{},
+		&CheckSmart{},
 	}
 }

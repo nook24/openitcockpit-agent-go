@@ -3,7 +3,9 @@ package checks
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -36,6 +38,15 @@ type resultDocker struct {
 	DiskRead         uint64  `json:"disk_read"`         // Linux and macOS only - Size of read bytes
 	DiskWrite        uint64  `json:"disk_write"`        // Linux and macOS only - Size of written bytes
 	MemoryUsed       float64 `json:"memory_used"`       // Used memory of the container in bytes (Windows, Linux and macOs)
+
+	Health              string `json:"health"`                // healthy, unhealthy, starting or empty if the container has no healthcheck
+	HealthFailingStreak int    `json:"health_failing_streak"` // Number of consecutive failed healthchecks
+	HealthOutput        string `json:"health_output"`         // Output of the last healthcheck
+	RestartCount        int    `json:"restart_count"`         // Restarts by the restart policy since the container was created
+	RestartsLastHour    int    `json:"restarts_last_hour"`    // Restarts by the restart policy within the last hour, detected by the agent
+	OOMKilled           bool   `json:"oom_killed"`            // The last run of the container was killed because of the memory limit
+	ExitCode            int    `json:"exit_code"`             // Exit code of the last run
+	StartedAt           int64  `json:"started_at"`            // Unix timestamp
 }
 
 // Run the actual check
@@ -55,6 +66,12 @@ func (c *CheckDocker) Run(ctx context.Context) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	existing := make(map[string]bool, len(containers))
+	for _, ctr := range containers {
+		existing[ctr.ID] = true
+	}
+	forgetRemovedDockerContainers(existing, time.Now())
 
 	var wg sync.WaitGroup
 	resultChan := make(chan *resultDocker, len(containers))
@@ -124,6 +141,7 @@ func (c *CheckDocker) Run(ctx context.Context) (interface{}, error) {
 				DiskWrite:        bytesWrite,
 				MemoryUsed:       memory,
 			}
+			c.addInspectInfo(ctx, cli, ctr.ID, containerResult)
 
 			// Return error back to check thread
 			resultChan <- containerResult
@@ -146,6 +164,86 @@ func (c *CheckDocker) Run(ctx context.Context) (interface{}, error) {
 	}
 
 	return dockerResults, nil
+}
+
+// The restart counts of the containers, to detect restart loops. Stored outside of CheckDocker, as the checks get recreated on reload
+var (
+	dockerRestartsMutex  sync.Mutex
+	dockerRestartSamples = map[string][]dockerRestartSample{}
+)
+
+type dockerRestartSample struct {
+	time  time.Time
+	count int
+}
+
+const (
+	dockerRestartWindow      = time.Hour
+	dockerHealthOutputLength = 1024
+)
+
+// addInspectInfo adds the healthcheck state and restart information of a container
+func (c *CheckDocker) addInspectInfo(ctx context.Context, cli *client.Client, id string, result *resultDocker) {
+	inspect, err := cli.ContainerInspect(ctx, id)
+	if err != nil {
+		log.Errorln("Docker Check error: ", err)
+		return
+	}
+
+	result.RestartCount = inspect.RestartCount
+	result.RestartsLastHour = dockerRestartsLastHour(id, inspect.RestartCount, time.Now())
+	if inspect.State == nil {
+		return
+	}
+
+	result.OOMKilled = inspect.State.OOMKilled
+	result.ExitCode = inspect.State.ExitCode
+	if startedAt, err := time.Parse(time.RFC3339Nano, inspect.State.StartedAt); err == nil && startedAt.Year() > 1 {
+		result.StartedAt = startedAt.Unix()
+	}
+	if health := inspect.State.Health; health != nil {
+		result.Health = string(health.Status)
+		result.HealthFailingStreak = health.FailingStreak
+		if len(health.Log) > 0 {
+			last := health.Log[len(health.Log)-1]
+			result.HealthOutput = truncateLogLineTo(strings.TrimSpace(last.Output), dockerHealthOutputLength)
+		}
+	}
+}
+
+// dockerRestartsLastHour returns the number of restarts within the last hour.
+// The restart count is sampled with every check run, restarts before the agent started are not counted
+func dockerRestartsLastHour(id string, restartCount int, now time.Time) int {
+	dockerRestartsMutex.Lock()
+	defer dockerRestartsMutex.Unlock()
+
+	samples := append(dockerRestartSamples[id], dockerRestartSample{time: now, count: restartCount})
+	windowStart := now.Add(-dockerRestartWindow)
+	first := 0
+	for first < len(samples)-1 && samples[first+1].time.Before(windowStart) {
+		first++
+	}
+	samples = append([]dockerRestartSample(nil), samples[first:]...)
+	dockerRestartSamples[id] = samples
+
+	restarts := restartCount - samples[0].count
+	if restarts < 0 {
+		// The container was recreated with the same id (should not happen)
+		return 0
+	}
+	return restarts
+}
+
+// forgetRemovedDockerContainers removes the restart samples of containers which were not seen within the last hour.
+// A container in a restart loop can be missing in the container list for a short time
+func forgetRemovedDockerContainers(existing map[string]bool, now time.Time) {
+	dockerRestartsMutex.Lock()
+	defer dockerRestartsMutex.Unlock()
+	for id, samples := range dockerRestartSamples {
+		if !existing[id] && (len(samples) == 0 || now.Sub(samples[len(samples)-1].time) > dockerRestartWindow) {
+			delete(dockerRestartSamples, id)
+		}
+	}
 }
 
 // Configure the command or return false if the command was disabled

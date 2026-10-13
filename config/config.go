@@ -134,6 +134,8 @@ type Configuration struct {
 	Security        bool  `mapstructure:"security"`
 	Zfs             bool  `mapstructure:"zfs"`
 	Ceph            bool  `mapstructure:"ceph"`
+	Smart           bool  `mapstructure:"smart"`
+	Proxmox         bool  `mapstructure:"proxmox"`
 
 	// Alfresco
 
@@ -206,6 +208,8 @@ var defaultValue = map[string]interface{}{
 	"security":                true,
 	"zfs":                     true,
 	"ceph":                    true,
+	"smart":                   true,
+	"proxmox":                 true,
 	"wineventlog-logtypes":    "System,Application",
 	"wineventlog-age":         3600,
 	"wineventlog-cache":       3600,
