@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -213,11 +214,13 @@ func TestZfsArc(t *testing.T) {
 	zfsArcLastHits, zfsArcLastMisses = 0, 0
 	zfsArcMutex.Unlock()
 
+	c := &CheckZfs{arcStatsPath: path}
 	write("900000", "100000")
-	arc, err := getZfsArc(path)
+	values, err := c.readArcStats(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
+	arc := getZfsArc(values)
 	if arc.Size != 8053063680 || arc.TargetSize != 8589934592 || arc.MinSize != 1073741824 || arc.MaxSize != 17179869184 ||
 		arc.HitRatioTotal != 90 || arc.HitRatio != -1 {
 		t.Errorf("unexpected arc: %+v", arc)
@@ -225,12 +228,16 @@ func TestZfsArc(t *testing.T) {
 
 	// 500 hits and 500 misses since the last run
 	write("900500", "100500")
-	if arc, _ = getZfsArc(path); arc.HitRatio != 50 {
+	values, _ = c.readArcStats(context.Background())
+	if arc = getZfsArc(values); arc.HitRatio != 50 {
 		t.Errorf("expected hit ratio of the interval 50%%: %+v", arc)
 	}
 }
 
 func TestCheckZfsWithoutZpool(t *testing.T) {
+	if _, err := exec.LookPath("zpool"); err == nil {
+		t.Skip("ZFS is installed on this system")
+	}
 	c := &CheckZfs{arcStatsPath: filepath.Join(t.TempDir(), "missing")}
 	r, err := c.Run(context.Background())
 	if err != nil {
@@ -337,5 +344,26 @@ func TestParseZpoolStatusOpenZFS24(t *testing.T) {
 	}
 	if p := pools["rpool"]; p == nil || p.Scan.State != "none" || p.DataErrors != 0 || len(p.Devices) != 2 {
 		t.Errorf("unexpected rpool without scan line: %+v", p)
+	}
+}
+
+func TestParseSysctlArcstats(t *testing.T) {
+	// Output of "sysctl -e kstat.zfs.misc.arcstats" on FreeBSD 15.1 (shortened)
+	output := "kstat.zfs.misc.arcstats.abd_chunk_waste_size=0\n" +
+		"kstat.zfs.misc.arcstats.hits=100963\n" +
+		"kstat.zfs.misc.arcstats.iohits=124\n" +
+		"kstat.zfs.misc.arcstats.misses=1039\n" +
+		"kstat.zfs.misc.arcstats.size=56674256\n" +
+		"kstat.zfs.misc.arcstats.c=101369472\n" +
+		"kstat.zfs.misc.arcstats.c_min=65586816\n" +
+		"kstat.zfs.misc.arcstats.c_max=1311736320\n" +
+		"kstat.zfs.misc.arcstats.memory_throttle_count=0\n"
+	values := parseSysctlArcstats(output)
+	if values["hits"] != 100963 || values["misses"] != 1039 || values["size"] != 56674256 || values["c"] != 101369472 ||
+		values["c_min"] != 65586816 || values["c_max"] != 1311736320 {
+		t.Errorf("unexpected values: %v", values)
+	}
+	if arc := getZfsArc(values); arc.MaxSize != 1311736320 || arc.HitRatioTotal < 98.9 || arc.HitRatioTotal > 99 {
+		t.Errorf("unexpected arc: %+v", arc)
 	}
 }

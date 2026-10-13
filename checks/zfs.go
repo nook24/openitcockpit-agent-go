@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,7 +32,7 @@ var (
 	zfsArcLastMisses uint64
 )
 
-// CheckZfs gathers the state of ZFS pools and the ARC (Adaptive Replacement Cache)
+// CheckZfs gathers the state of ZFS pools and the ARC (Adaptive Replacement Cache) on Linux and FreeBSD
 type CheckZfs struct {
 	// can be changed by tests
 	arcStatsPath string
@@ -105,14 +106,10 @@ func (c *CheckZfs) Run(ctx context.Context) (interface{}, error) {
 		result["pools"] = pools
 	}
 
-	arcStatsPath := c.arcStatsPath
-	if arcStatsPath == "" {
-		arcStatsPath = zfsArcStatsPath
-	}
-	if arc, err := getZfsArc(arcStatsPath); err != nil {
+	if values, err := c.readArcStats(ctx); err != nil {
 		result["arc"] = map[string]string{"error": err.Error()}
 	} else {
-		result["arc"] = arc
+		result["arc"] = getZfsArc(values)
 	}
 
 	return result, nil
@@ -396,14 +393,47 @@ func parseZfsDeviceLine(line string) *resultZfsDevice {
 	return device
 }
 
-// getZfsArc reads the ARC statistics. The hit ratio is calculated for the time since the last check run
-func getZfsArc(path string) (*resultZfsArc, error) {
+// readArcStats returns the ARC statistics: Linux provides a kstat file, FreeBSD provides sysctls with the same names
+func (c *CheckZfs) readArcStats(ctx context.Context) (map[string]uint64, error) {
+	if runtime.GOOS == "freebsd" && c.arcStatsPath == "" {
+		output, err := runZfsCommand(ctx, "sysctl", "-e", "kstat.zfs.misc.arcstats")
+		if err != nil {
+			return nil, err
+		}
+		return parseSysctlArcstats(output), nil
+	}
+
+	path := c.arcStatsPath
+	if path == "" {
+		path = zfsArcStatsPath
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
+	return parseKstat(string(data)), nil
+}
 
-	values := parseKstat(string(data))
+// parseSysctlArcstats parses the output of "sysctl -e kstat.zfs.misc.arcstats" of FreeBSD, e.g.:
+// kstat.zfs.misc.arcstats.hits=100963
+func parseSysctlArcstats(output string) map[string]uint64 {
+	const prefix = "kstat.zfs.misc.arcstats."
+	values := map[string]uint64{}
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		key, value, ok := strings.Cut(strings.TrimSpace(scanner.Text()), "=")
+		if !ok || !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		if number, err := strconv.ParseUint(strings.TrimSpace(value), 10, 64); err == nil {
+			values[strings.TrimPrefix(key, prefix)] = number
+		}
+	}
+	return values
+}
+
+// getZfsArc calculates the ARC statistics. The hit ratio is calculated for the time since the last check run
+func getZfsArc(values map[string]uint64) *resultZfsArc {
 	arc := &resultZfsArc{
 		Size:       values["size"],
 		TargetSize: values["c"],
@@ -421,7 +451,7 @@ func getZfsArc(path string) (*resultZfsArc, error) {
 		arc.HitRatio = hitRatio(arc.Hits-zfsArcLastHits, arc.Misses-zfsArcLastMisses)
 	}
 	zfsArcLastHits, zfsArcLastMisses = arc.Hits, arc.Misses
-	return arc, nil
+	return arc
 }
 
 func hitRatio(hits, misses uint64) float64 {

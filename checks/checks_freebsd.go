@@ -20,5 +20,6 @@ func getPlatformChecks() []Check {
 		&CheckFile{},
 		&CheckHTTP{},
 		&CheckSmart{},
+		&CheckZfs{},
 	}
 }
