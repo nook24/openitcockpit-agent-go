@@ -16,18 +16,45 @@ import (
 
 const (
 	proxmoxConfigPath = "/etc/pve"
-	// pvesh needs about half a second of CPU time per call, so the result is cached
-	proxmoxCacheDuration  = 2 * time.Minute
-	proxmoxCommandTimeout = 20 * time.Second
+	// pvesh needs up to 1.5 seconds of CPU time per call on small systems, so the data is collected in the background:
+	// cluster status, HA and resources every 2 minutes, backups and replication every 10 minutes
+	proxmoxCoreInterval   = 2 * time.Minute
+	proxmoxSlowInterval   = 10 * time.Minute
+	proxmoxCommandTimeout = 30 * time.Second
+	// The background collector stops if the check was not executed for this time (e.g. disabled by a reload)
+	proxmoxIdleTimeout = 10 * time.Minute
 	// Number of the latest backup tasks of the node
 	proxmoxBackupTaskLimit = 50
 )
 
-var (
-	proxmoxCacheMutex sync.Mutex
-	proxmoxCache      map[string]interface{}
-	proxmoxCacheTime  time.Time
-)
+// proxmoxCollector collects the data in the background, so the slow pvesh calls do not delay the other checks
+type proxmoxCollector struct {
+	mutex      sync.Mutex
+	pvesh      string
+	generation int // Incremented by reset, so an old background goroutine stops
+	running    bool
+	lastAccess time.Time
+
+	localNode string
+	core      map[string]interface{} // node, cluster, ha, guests, storages, collected_at
+	coreErr   error                  // The cluster status is not available (e.g. pve-cluster is not running)
+	coreTime  time.Time
+	guests    []*resultProxmoxGuest
+	slow      map[string]interface{} // backups, replication
+	slowTime  time.Time
+}
+
+var proxmoxState = &proxmoxCollector{}
+
+// resetProxmoxCollector discards all collected data and stops the background goroutine
+func resetProxmoxCollector() {
+	proxmoxState.mutex.Lock()
+	defer proxmoxState.mutex.Unlock()
+	proxmoxState.generation++
+	proxmoxState.running = false
+	proxmoxState.core, proxmoxState.coreErr, proxmoxState.slow = nil, nil, nil
+	proxmoxState.coreTime, proxmoxState.slowTime = time.Time{}, time.Time{}
+}
 
 // CheckProxmox gathers the state of a Proxmox VE node and its cluster with pvesh
 type CheckProxmox struct {
@@ -139,26 +166,105 @@ type resultProxmoxReplication struct {
 // ctx can be canceled and runs the timeout
 // CheckResult will be serialized after the return and should not change until the next call to Run
 func (c *CheckProxmox) Run(ctx context.Context) (interface{}, error) {
-	proxmoxCacheMutex.Lock()
-	defer proxmoxCacheMutex.Unlock()
-
-	if proxmoxCache != nil && time.Since(proxmoxCacheTime) < proxmoxCacheDuration {
-		return proxmoxCache, nil
-	}
-
 	pvesh := c.pvesh
 	if pvesh == "" {
 		pvesh = "pvesh"
 	}
 
-	// The cluster status contains the name of the local node, which is required for the other queries
+	state := proxmoxState
+	state.mutex.Lock()
+	defer state.mutex.Unlock()
+	state.pvesh = pvesh
+	state.lastAccess = time.Now()
+
+	// The first run collects the core data synchronously, all following runs return the data of the background collector.
+	// Backups and replication are collected by the background collector right after the first run
+	if state.core == nil {
+		state.mutex.Unlock()
+		core, guests, localNode, err := collectProxmoxCore(ctx, pvesh)
+		state.mutex.Lock()
+		state.storeCore(core, guests, localNode, err)
+	}
+
+	if !state.running {
+		state.running = true
+		go state.collect(state.generation)
+	}
+
+	if state.coreErr != nil {
+		return nil, state.coreErr
+	}
+	result := make(map[string]interface{}, len(state.core)+len(state.slow))
+	for key, value := range state.core {
+		result[key] = value
+	}
+	for key, value := range state.slow {
+		result[key] = value
+	}
+	return result, nil
+}
+
+func (s *proxmoxCollector) storeCore(core map[string]interface{}, guests []*resultProxmoxGuest, localNode string, err error) {
+	s.coreTime = time.Now()
+	s.coreErr = err
+	if err != nil {
+		return
+	}
+	s.core, s.guests, s.localNode = core, guests, localNode
+}
+
+// collect runs in the background and refreshes the data
+func (s *proxmoxCollector) collect(generation int) {
+	for first := true; ; first = false {
+		if !first {
+			time.Sleep(15 * time.Second)
+		}
+
+		s.mutex.Lock()
+		if s.generation != generation || time.Since(s.lastAccess) > proxmoxIdleTimeout {
+			if s.generation == generation {
+				s.running = false
+			}
+			s.mutex.Unlock()
+			return
+		}
+		pvesh := s.pvesh
+		refreshCore := time.Since(s.coreTime) >= proxmoxCoreInterval
+		refreshSlow := s.coreErr == nil && time.Since(s.slowTime) >= proxmoxSlowInterval
+		s.mutex.Unlock()
+
+		ctx := context.Background()
+		if refreshCore {
+			core, guests, localNode, err := collectProxmoxCore(ctx, pvesh)
+			s.mutex.Lock()
+			if s.generation == generation {
+				s.storeCore(core, guests, localNode, err)
+			}
+			s.mutex.Unlock()
+		}
+		if refreshSlow {
+			s.mutex.Lock()
+			localNode, guests := s.localNode, s.guests
+			s.mutex.Unlock()
+			slow := collectProxmoxSlow(ctx, pvesh, localNode, guests)
+			s.mutex.Lock()
+			if s.generation == generation {
+				s.slow, s.slowTime = slow, time.Now()
+			}
+			s.mutex.Unlock()
+		}
+	}
+}
+
+// collectProxmoxCore queries the cluster status, HA status and the resources of the cluster (guests and storages)
+func collectProxmoxCore(ctx context.Context, pvesh string) (map[string]interface{}, []*resultProxmoxGuest, string, error) {
 	statusOutput, err := runPvesh(ctx, pvesh, "/cluster/status")
 	if err != nil {
-		return nil, err
+		return nil, nil, "", err
 	}
 	cluster, localNode, err := parseProxmoxClusterStatus(statusOutput)
 	if err != nil {
-		return nil, err
+		return nil, nil, "", err
 	}
 	if localNode == "" {
 		if hostname, err := os.Hostname(); err == nil {
@@ -171,57 +277,42 @@ func (c *CheckProxmox) Run(ctx context.Context) (interface{}, error) {
 		"collected_at": time.Now().Unix(),
 		"cluster":      cluster,
 	}
+	setProxmoxPart(result, "ha", func() (interface{}, error) {
+		output, err := runPvesh(ctx, pvesh, "/cluster/ha/status/current")
+		return parseProxmoxHa(output, err)
+	})
 
-	// The other parts are queried in parallel. Every part can fail on its own
-	queries := map[string][]string{
-		"ha":            {"/cluster/ha/status/current"},
-		"storages":      {fmt.Sprintf("/nodes/%s/storage", localNode)},
-		"guests":        {"/cluster/resources", "--type", "vm"},
-		"tasks":         {fmt.Sprintf("/nodes/%s/tasks", localNode), "--typefilter", "vzdump", "--limit", strconv.Itoa(proxmoxBackupTaskLimit)},
-		"not_backed_up": {"/cluster/backup-info/not-backed-up"},
-		"replication":   {fmt.Sprintf("/nodes/%s/replication", localNode)},
+	// The resources contain the guests of the cluster and the storages of all nodes, which saves pvesh calls
+	output, err := runPvesh(ctx, pvesh, "/cluster/resources")
+	guests, storages, err := parseProxmoxResources(output, err, localNode)
+	setProxmoxPart(result, "guests", func() (interface{}, error) { return guests, err })
+	setProxmoxPart(result, "storages", func() (interface{}, error) { return storages, err })
+	return result, guests, localNode, nil
+}
+
+// collectProxmoxSlow queries the backup tasks, the guests without backup job and the replication jobs
+func collectProxmoxSlow(ctx context.Context, pvesh, localNode string, guests []*resultProxmoxGuest) map[string]interface{} {
+	result := map[string]interface{}{}
+	setProxmoxPart(result, "backups", func() (interface{}, error) {
+		tasks, tasksErr := runPvesh(ctx, pvesh, fmt.Sprintf("/nodes/%s/tasks", localNode), "--typefilter", "vzdump", "--limit", strconv.Itoa(proxmoxBackupTaskLimit))
+		notBackedUp, notBackedUpErr := runPvesh(ctx, pvesh, "/cluster/backup-info/not-backed-up")
+		return parseProxmoxBackups(tasks, tasksErr, notBackedUp, notBackedUpErr, guests, localNode)
+	})
+	setProxmoxPart(result, "replication", func() (interface{}, error) {
+		output, err := runPvesh(ctx, pvesh, fmt.Sprintf("/nodes/%s/replication", localNode))
+		return parseProxmoxReplication(output, err)
+	})
+	return result
+}
+
+// setProxmoxPart stores a part of the result or its error. Every part can fail on its own
+func setProxmoxPart(result map[string]interface{}, name string, get func() (interface{}, error)) {
+	value, err := get()
+	if err != nil {
+		result[name] = map[string]string{"error": err.Error()}
+		return
 	}
-	outputs := map[string][]byte{}
-	errs := map[string]error{}
-	var mutex sync.Mutex
-	var wg sync.WaitGroup
-	for name, args := range queries {
-		wg.Add(1)
-		go func(name string, args []string) {
-			defer wg.Done()
-			output, err := runPvesh(ctx, pvesh, args...)
-			mutex.Lock()
-			defer mutex.Unlock()
-			outputs[name], errs[name] = output, err
-		}(name, args)
-	}
-	wg.Wait()
-
-	setPart := func(name string, value interface{}, err error) {
-		if err != nil {
-			result[name] = map[string]string{"error": err.Error()}
-			return
-		}
-		result[name] = value
-	}
-
-	ha, err := parseProxmoxHa(outputs["ha"], errs["ha"])
-	setPart("ha", ha, err)
-
-	storages, err := parseProxmoxStorages(outputs["storages"], errs["storages"])
-	setPart("storages", storages, err)
-
-	guests, err := parseProxmoxGuests(outputs["guests"], errs["guests"])
-	setPart("guests", guests, err)
-
-	backups, err := parseProxmoxBackups(outputs["tasks"], errs["tasks"], outputs["not_backed_up"], errs["not_backed_up"], guests, localNode)
-	setPart("backups", backups, err)
-
-	replication, err := parseProxmoxReplication(outputs["replication"], errs["replication"])
-	setPart("replication", replication, err)
-
-	proxmoxCache, proxmoxCacheTime = result, time.Now()
-	return result, nil
+	result[name] = value
 }
 
 // Configure the command or return false if the command was disabled
@@ -243,9 +334,20 @@ func runPvesh(ctx context.Context, pvesh string, args ...string) ([]byte, error)
 	ctx, cancel := context.WithTimeout(ctx, proxmoxCommandTimeout)
 	defer cancel()
 
+	pvesh, err := exec.LookPath(pvesh)
+	if err != nil {
+		return nil, err
+	}
+
 	cmdArgs := append([]string{"get"}, args...)
 	cmdArgs = append(cmdArgs, "--output-format", "json")
-	output, err := exec.CommandContext(ctx, pvesh, cmdArgs...).Output()
+	// Low priority, as monitoring must not slow down the virtual machines
+	name := pvesh
+	if nice, err := exec.LookPath("nice"); err == nil {
+		name = nice
+		cmdArgs = append([]string{"-n", "10", pvesh}, cmdArgs...)
+	}
+	output, err := exec.CommandContext(ctx, name, cmdArgs...).Output()
 	if err != nil {
 		var stderr string
 		if exitError, ok := err.(*exec.ExitError); ok {
@@ -364,58 +466,18 @@ func parseProxmoxHa(data []byte, err error) (*resultProxmoxHa, error) {
 	return ha, nil
 }
 
-func parseProxmoxStorages(data []byte, err error) ([]*resultProxmoxStorage, error) {
+// parseProxmoxResources returns the guests of the cluster and the storages of the local node of /cluster/resources.
+// The storage status comes from the status cache of Proxmox (pvestatd), so no storage gets activated by the query
+func parseProxmoxResources(data []byte, err error, localNode string) ([]*resultProxmoxGuest, []*resultProxmoxStorage, error) {
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var entries []struct {
-		Storage      string      `json:"storage"`
-		Type         string      `json:"type"`
-		Content      string      `json:"content"`
-		Enabled      proxmoxBool `json:"enabled"`
-		Active       proxmoxBool `json:"active"`
-		Shared       proxmoxBool `json:"shared"`
-		Total        int64       `json:"total"`
-		Used         int64       `json:"used"`
-		Avail        int64       `json:"avail"`
-		UsedFraction float64     `json:"used_fraction"`
-	}
-	if err := json.Unmarshal(data, &entries); err != nil {
-		return nil, fmt.Errorf("could not parse storage status: %s", err)
-	}
-
-	storages := make([]*resultProxmoxStorage, 0, len(entries))
-	for _, entry := range entries {
-		storage := &resultProxmoxStorage{
-			Storage:     entry.Storage,
-			Type:        entry.Type,
-			Content:     entry.Content,
-			Enabled:     bool(entry.Enabled),
-			Active:      bool(entry.Active),
-			Shared:      bool(entry.Shared),
-			Total:       entry.Total,
-			Used:        entry.Used,
-			Available:   entry.Avail,
-			UsedPercent: entry.UsedFraction * 100,
-		}
-		if storage.UsedPercent == 0 && storage.Total > 0 {
-			storage.UsedPercent = float64(storage.Used) / float64(storage.Total) * 100
-		}
-		storages = append(storages, storage)
-	}
-	return storages, nil
-}
-
-func parseProxmoxGuests(data []byte, err error) ([]*resultProxmoxGuest, error) {
-	if err != nil {
-		return nil, err
-	}
-	var entries []struct {
-		Vmid     int64       `json:"vmid"`
-		Name     string      `json:"name"`
 		Type     string      `json:"type"`
 		Node     string      `json:"node"`
 		Status   string      `json:"status"`
+		Vmid     int64       `json:"vmid"`
+		Name     string      `json:"name"`
 		Uptime   int64       `json:"uptime"`
 		Template proxmoxBool `json:"template"`
 		Lock     string      `json:"lock"`
@@ -425,35 +487,63 @@ func parseProxmoxGuests(data []byte, err error) ([]*resultProxmoxGuest, error) {
 		MaxCPU   int64       `json:"maxcpu"`
 		Mem      int64       `json:"mem"`
 		MaxMem   int64       `json:"maxmem"`
+		// Storages
+		Storage    string      `json:"storage"`
+		PluginType string      `json:"plugintype"`
+		Content    string      `json:"content"`
+		Shared     proxmoxBool `json:"shared"`
+		Disk       int64       `json:"disk"`
+		MaxDisk    int64       `json:"maxdisk"`
 	}
 	if err := json.Unmarshal(data, &entries); err != nil {
-		return nil, fmt.Errorf("could not parse /cluster/resources: %s", err)
+		return nil, nil, fmt.Errorf("could not parse /cluster/resources: %s", err)
 	}
 
 	// All guests of the cluster, so a guest can be monitored independent of the node it was migrated to
 	guests := []*resultProxmoxGuest{}
+	storages := []*resultProxmoxStorage{}
 	for _, entry := range entries {
-		if entry.Type != "qemu" && entry.Type != "lxc" {
-			continue
+		switch entry.Type {
+		case "qemu", "lxc":
+			guests = append(guests, &resultProxmoxGuest{
+				Vmid:     entry.Vmid,
+				Name:     entry.Name,
+				Type:     entry.Type,
+				Node:     entry.Node,
+				Status:   entry.Status,
+				Uptime:   entry.Uptime,
+				Template: bool(entry.Template),
+				Lock:     entry.Lock,
+				HaState:  entry.HaState,
+				Tags:     entry.Tags,
+				CPU:      entry.CPU,
+				MaxCPU:   entry.MaxCPU,
+				Memory:   entry.Mem,
+				MaxMem:   entry.MaxMem,
+			})
+		case "storage":
+			// Only the storages of this node, disabled storages are not part of the resources
+			if localNode != "" && entry.Node != localNode {
+				continue
+			}
+			storage := &resultProxmoxStorage{
+				Storage: entry.Storage,
+				Type:    entry.PluginType,
+				Content: entry.Content,
+				Enabled: true,
+				Active:  entry.Status == "available",
+				Shared:  bool(entry.Shared),
+				Total:   entry.MaxDisk,
+				Used:    entry.Disk,
+			}
+			if storage.Total > 0 {
+				storage.Available = storage.Total - storage.Used
+				storage.UsedPercent = float64(storage.Used) / float64(storage.Total) * 100
+			}
+			storages = append(storages, storage)
 		}
-		guests = append(guests, &resultProxmoxGuest{
-			Vmid:     entry.Vmid,
-			Name:     entry.Name,
-			Type:     entry.Type,
-			Node:     entry.Node,
-			Status:   entry.Status,
-			Uptime:   entry.Uptime,
-			Template: bool(entry.Template),
-			Lock:     entry.Lock,
-			HaState:  entry.HaState,
-			Tags:     entry.Tags,
-			CPU:      entry.CPU,
-			MaxCPU:   entry.MaxCPU,
-			Memory:   entry.Mem,
-			MaxMem:   entry.MaxMem,
-		})
 	}
-	return guests, nil
+	return guests, storages, nil
 }
 
 func parseProxmoxBackups(tasksData []byte, tasksErr error, notBackedUpData []byte, notBackedUpErr error, guests []*resultProxmoxGuest, localNode string) (*resultProxmoxBackups, error) {

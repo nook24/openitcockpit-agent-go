@@ -246,3 +246,96 @@ func TestCheckZfsWithoutZpool(t *testing.T) {
 		}
 	}
 }
+
+// Real output of OpenZFS 2.4.2 on Proxmox VE 9.2: a running scrub, a degraded mirror, permanent data errors
+// and a pool which was never scrubbed (no scan line at all)
+const testZpoolStatusOpenZFS24Scrub = `  pool: oitc-repair
+ state: ONLINE
+status: One or more devices has experienced an unrecoverable error.  An
+	attempt was made to correct the error.  Applications are unaffected.
+action: Determine if the device needs to be replaced, and clear the errors
+	using 'zpool clear' or replace the device with 'zpool replace'.
+   see: https://openzfs.github.io/openzfs-docs/msg/ZFS-8000-9P
+  scan: scrub in progress since Tue Oct 13 20:08:31 2026
+	259M / 259M scanned, 10.5M / 257M issued at 10.5M/s
+	0B repaired, 4.09% done, 00:00:23 to go
+config:
+
+	NAME                      STATE     READ WRITE CKSUM
+	oitc-repair               ONLINE       0     0     0
+	  mirror-0                ONLINE       0     0     0
+	    /var/tmp/oitc-zfs/c1  ONLINE       0     0     0
+	    /var/tmp/oitc-zfs/c2  ONLINE       0     0   404
+
+errors: No known data errors
+`
+
+const testZpoolStatusOpenZFS24 = `  pool: oitc-mirror
+ state: DEGRADED
+status: One or more devices has been taken offline by the administrator.
+	Sufficient replicas exist for the pool to continue functioning in a
+	degraded state.
+action: Online the device using 'zpool online' or replace the device with
+	'zpool replace'.
+  scan: scrub repaired 0B in 00:00:01 with 0 errors on Tue Oct 13 20:05:27 2026
+config:
+
+	NAME                      STATE     READ WRITE CKSUM
+	oitc-mirror               DEGRADED     0     0     0
+	  mirror-0                DEGRADED     0     0     0
+	    /var/tmp/oitc-zfs/m1  ONLINE       0     0     0
+	    /var/tmp/oitc-zfs/m2  OFFLINE      0     0     0
+
+errors: No known data errors
+
+  pool: oitc-single
+ state: ONLINE
+status: One or more devices has experienced an error resulting in data
+	corruption.  Applications may be affected.
+action: Restore the file in question if possible.  Otherwise restore the
+	entire pool from backup.
+   see: https://openzfs.github.io/openzfs-docs/msg/ZFS-8000-8A
+  scan: scrub repaired 51.5K in 00:00:01 with 399 errors on Tue Oct 13 20:05:37 2026
+config:
+
+	NAME                    STATE     READ WRITE CKSUM
+	oitc-single             ONLINE       0     0     0
+	  /var/tmp/oitc-zfs/s1  ONLINE       0     0   813
+
+errors: 399 data errors, use '-v' for a list
+
+  pool: rpool
+ state: ONLINE
+config:
+
+	NAME                                           STATE     READ WRITE CKSUM
+	rpool                                          ONLINE       0     0     0
+	  ata-VBOX_HARDDISK_VB5e5ef1e0-8c396fbd-part3  ONLINE       0     0     0
+
+errors: No known data errors
+`
+
+func TestParseZpoolStatusOpenZFS24(t *testing.T) {
+	location := time.Local
+	scrub := parseZpoolStatus(testZpoolStatusOpenZFS24Scrub, location)["oitc-repair"]
+	if scrub == nil {
+		t.Fatal("pool oitc-repair not found")
+	}
+	if s := scrub.Scan; s.Function != "scrub" || s.State != "in_progress" || s.ProgressPercent != 4.09 || s.StartTime == 0 {
+		t.Errorf("unexpected running scrub: %+v", s)
+	}
+	if d := scrub.Devices[3]; d.Name != "/var/tmp/oitc-zfs/c2" || d.ChecksumErrors != 404 {
+		t.Errorf("unexpected device: %+v", d)
+	}
+
+	pools := parseZpoolStatus(testZpoolStatusOpenZFS24, location)
+	if p := pools["oitc-mirror"]; p == nil || p.Devices[3].State != "OFFLINE" || p.Scan.State != "finished" || p.Scan.Errors != 0 {
+		t.Errorf("unexpected degraded mirror: %+v", p)
+	}
+	if p := pools["oitc-single"]; p == nil || p.DataErrors <= 0 || p.Scan.Errors <= 0 || p.Devices[1].ChecksumErrors <= 0 {
+		t.Errorf("unexpected pool with data errors: %+v %+v", p, p.Scan)
+	}
+	if p := pools["rpool"]; p == nil || p.Scan.State != "none" || p.DataErrors != 0 || len(p.Devices) != 2 {
+		t.Errorf("unexpected rpool without scan line: %+v", p)
+	}
+}

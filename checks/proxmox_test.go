@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 const testPveClusterStatus = `[
@@ -28,14 +29,16 @@ const testPveHaStatus = `[
   {"crm_state":"error","id":"service:ct:200","max_relocate":1,"max_restart":1,"node":"pve3","request_state":"started","sid":"ct:200","state":"error","status":"ct:200 (pve3, error)","type":"service"}
 ]`
 
-const testPveStorage = `[
-  {"active":1,"avail":405311782912,"content":"iso,vztmpl,backup","enabled":1,"shared":0,"storage":"local","total":502468108288,"type":"dir","used":97156325376,"used_fraction":0.193358},
-  {"active":1,"avail":214748364800,"content":"images,rootdir","enabled":1,"shared":0,"storage":"local-lvm","total":1879048192000,"type":"lvmthin","used":1664299827200,"used_fraction":0.885714},
-  {"active":0,"content":"backup","enabled":1,"shared":1,"storage":"nfs-backup","type":"nfs"},
-  {"active":0,"content":"images","enabled":0,"shared":1,"storage":"old-iscsi","type":"iscsi"}
-]`
+// Storage entries of /cluster/resources (real output of Proxmox VE 9.2, oitc-nfs and oitc-usb are not available)
+const testPveResourceStorages = `
+  {"content":"backup","id":"storage/pve1/oitc-usb","node":"pve1","plugintype":"dir","shared":0,"status":"unknown","storage":"oitc-usb","type":"storage"},
+  {"content":"backup","id":"storage/pve1/oitc-nfs","node":"pve1","plugintype":"nfs","shared":1,"status":"unknown","storage":"oitc-nfs","type":"storage"},
+  {"content":"images,rootdir","disk":1664299827200,"id":"storage/pve1/local-lvm","maxdisk":1879048192000,"node":"pve1","plugintype":"lvmthin","shared":0,"status":"available","storage":"local-lvm","type":"storage"},
+  {"content":"vztmpl,import,iso,backup","disk":97156325376,"id":"storage/pve1/local","maxdisk":502468108288,"node":"pve1","plugintype":"dir","shared":0,"status":"available","storage":"local","type":"storage"},
+  {"content":"images","disk":100,"id":"storage/pve2/local-lvm","maxdisk":1000,"node":"pve2","plugintype":"lvmthin","shared":0,"status":"available","storage":"local-lvm","type":"storage"},
+  {"cpu":0.0315,"disk":3313238016,"hastate":"online","id":"node/pve1","level":"","maxcpu":2,"maxdisk":40596799488,"maxmem":4104704000,"mem":2020179968,"node":"pve1","status":"online","type":"node","uptime":545},`
 
-const testPveResources = `[
+const testPveResources = `[` + testPveResourceStorages + `
   {"cpu":0.0123,"disk":0,"id":"qemu/100","maxcpu":4,"maxdisk":53687091200,"maxmem":8589934592,"mem":4294967296,"name":"web01","node":"pve1","status":"running","template":0,"type":"qemu","uptime":864000,"vmid":100,"hastate":"started","tags":"prod;web"},
   {"cpu":0,"id":"qemu/101","maxcpu":2,"maxmem":4294967296,"mem":0,"name":"db01","node":"pve1","status":"stopped","template":0,"type":"qemu","uptime":0,"vmid":101,"lock":"backup"},
   {"cpu":0,"id":"qemu/9000","maxcpu":2,"maxmem":2147483648,"mem":0,"name":"debian-template","node":"pve1","status":"stopped","template":1,"type":"qemu","uptime":0,"vmid":9000},
@@ -89,20 +92,19 @@ func TestParseProxmoxParts(t *testing.T) {
 		t.Errorf("unexpected service: %+v", s)
 	}
 
-	storages, err := parseProxmoxStorages([]byte(testPveStorage), nil)
+	guests, storages, err := parseProxmoxResources([]byte(testPveResources), nil, "pve1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s := storages[1]; s.Storage != "local-lvm" || s.Type != "lvmthin" || !s.Active || s.UsedPercent < 88.5 || s.UsedPercent > 88.6 {
+	// Only the storages of pve1
+	if len(storages) != 4 {
+		t.Fatalf("expected the 4 storages of pve1, got %d", len(storages))
+	}
+	if s := storages[2]; s.Storage != "local-lvm" || s.Type != "lvmthin" || !s.Active || !s.Enabled || s.UsedPercent < 88.5 || s.UsedPercent > 88.6 || s.Available != 1879048192000-1664299827200 {
 		t.Errorf("unexpected storage: %+v", s)
 	}
-	if s := storages[2]; s.Storage != "nfs-backup" || s.Active || !s.Enabled || !s.Shared {
+	if s := storages[1]; s.Storage != "oitc-nfs" || s.Active || !s.Enabled || !s.Shared || s.Type != "nfs" {
 		t.Errorf("unexpected inactive storage: %+v", s)
-	}
-
-	guests, err := parseProxmoxGuests([]byte(testPveResources), nil)
-	if err != nil {
-		t.Fatal(err)
 	}
 	if len(guests) != 5 {
 		t.Fatalf("expected the 5 guests of the cluster, got %d", len(guests))
@@ -145,18 +147,12 @@ func TestCheckProxmoxWithFakePvesh(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell script")
 	}
-	proxmoxCacheMutex.Lock()
-	proxmoxCache = nil
-	proxmoxCacheMutex.Unlock()
-	t.Cleanup(func() {
-		proxmoxCacheMutex.Lock()
-		proxmoxCache = nil
-		proxmoxCacheMutex.Unlock()
-	})
+	resetProxmoxCollector()
+	t.Cleanup(resetProxmoxCollector)
 
 	dir := t.TempDir()
 	fixtures := map[string]string{
-		"status": testPveClusterStatus, "ha": testPveHaStatus, "storage": testPveStorage, "resources": testPveResources,
+		"status": testPveClusterStatus, "ha": testPveHaStatus, "resources": testPveResources,
 		"tasks": testPveTasks, "notbackedup": testPveNotBackedUp,
 	}
 	for name, content := range fixtures {
@@ -169,8 +165,7 @@ func TestCheckProxmoxWithFakePvesh(t *testing.T) {
 case "$*" in
   "get /cluster/status --output-format json") cat ` + dir + `/status.json ;;
   "get /cluster/ha/status/current --output-format json") cat ` + dir + `/ha.json ;;
-  "get /nodes/pve1/storage --output-format json") cat ` + dir + `/storage.json ;;
-  "get /cluster/resources --type vm --output-format json") cat ` + dir + `/resources.json ;;
+  "get /cluster/resources --output-format json") cat ` + dir + `/resources.json ;;
   "get /nodes/pve1/tasks --typefilter vzdump --limit 50 --output-format json") cat ` + dir + `/tasks.json ;;
   "get /cluster/backup-info/not-backed-up --output-format json") cat ` + dir + `/notbackedup.json ;;
   "get /nodes/pve1/replication --output-format json") echo "replication not available" >&2; exit 2 ;;
@@ -184,6 +179,19 @@ esac
 
 	r, err := (&CheckProxmox{pvesh: pvesh}).Run(context.Background())
 	if err != nil {
+		t.Fatal(err)
+	}
+	// Backups and replication are collected in the background after the first run
+	for i := 0; i < 50; i++ {
+		proxmoxState.mutex.Lock()
+		collected := proxmoxState.slow != nil
+		proxmoxState.mutex.Unlock()
+		if collected {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if r, err = (&CheckProxmox{pvesh: pvesh}).Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	js, _ := json.Marshal(r)
@@ -202,11 +210,20 @@ esac
 	if guests := result["guests"].([]*resultProxmoxGuest); len(guests) != 5 {
 		t.Errorf("unexpected guests: %d", len(guests))
 	}
+	if storages := result["storages"].([]*resultProxmoxStorage); len(storages) != 4 {
+		t.Errorf("unexpected storages: %d", len(storages))
+	}
+
+	// The following runs return the collected data without calling pvesh
+	if err := os.WriteFile(pvesh, []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if r, err := (&CheckProxmox{pvesh: pvesh}).Run(context.Background()); err != nil || r.(map[string]interface{})["node"] != "pve1" {
+		t.Errorf("expected the collected data: %v %v", r, err)
+	}
 
 	// Cluster status not available: the whole check fails
-	proxmoxCacheMutex.Lock()
-	proxmoxCache = nil
-	proxmoxCacheMutex.Unlock()
+	resetProxmoxCollector()
 	if err := os.WriteFile(pvesh, []byte("#!/bin/sh\necho 'ipcc_send_rec[1] failed: Connection refused' >&2\nexit 111\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
