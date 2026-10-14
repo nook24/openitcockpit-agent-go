@@ -102,6 +102,7 @@ type Configuration struct {
 	FilesFilePath        string `mapstructure:"files"`
 	HTTPFilePath         string `mapstructure:"http"`
 	PerfCountersFilePath string `mapstructure:"perfcounters"`
+	RedfishFilePath      string `mapstructure:"redfish"`
 
 	// EnablePPROF for debugging memory leaks with the go tool pprof command
 	EnablePPROF bool `mapstructure:"enable-dev-pprof"`
@@ -174,6 +175,7 @@ type Configuration struct {
 	FileConfiguration        []*FileDefinition        `json:"files_configuration" mapstructure:"-"`
 	HTTPConfiguration        []*HTTPDefinition        `json:"http_configuration" mapstructure:"-"`
 	PerfCounterConfiguration []*PerfCounterDefinition `json:"perfcounter_configuration" mapstructure:"-"`
+	RedfishConfiguration     []*RedfishDefinition     `json:"-" mapstructure:"-"` // Contains passwords
 
 	// Prometheus Exporter / Proxy
 	Prometheus                      *PrometheusConfiguration `json:"prometheus"`
@@ -223,6 +225,7 @@ var defaultValue = map[string]interface{}{
 	"files":                   filepath.Join(platformpaths.Get().ConfigPath(), "files.ini"),
 	"http":                    filepath.Join(platformpaths.Get().ConfigPath(), "http.ini"),
 	"perfcounters":            filepath.Join(platformpaths.Get().ConfigPath(), "perfcounters.ini"),
+	"redfish":                 filepath.Join(platformpaths.Get().ConfigPath(), "redfish.ini"),
 	"tls-security-level":      "lax",
 	"autossl-folder":          platformpaths.Get().ConfigPath(),
 	"autossl-csr-file":        filepath.Join(platformpaths.Get().ConfigPath(), "agent.csr"),
@@ -307,6 +310,7 @@ func unmarshalConfiguration(v *viper.Viper) (*Configuration, error) {
 	cfg.FileConfiguration = loadOptionalDefinitions(cfg.FilesFilePath, "file definitions", unmarshalFiles)
 	cfg.HTTPConfiguration = loadOptionalDefinitions(cfg.HTTPFilePath, "http definitions", unmarshalHTTP)
 	cfg.PerfCounterConfiguration = loadOptionalDefinitions(cfg.PerfCountersFilePath, "perfcounter definitions", unmarshalPerfCounters)
+	cfg.RedfishConfiguration = loadOptionalDefinitions(cfg.RedfishFilePath, "redfish definitions", unmarshalRedfish)
 
 	// Parse Prometheus Exporter configuration
 	if cfg.Prometheus.ExportersFilePath != "" && cfg.Prometheus.Enable {

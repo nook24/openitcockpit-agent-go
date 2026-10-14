@@ -668,6 +668,9 @@ def package_linux() {
         sh 'cp example/certificates_example.ini package/etc/openitcockpit-agent/certificates.ini'
         sh 'cp example/files_example.ini package/etc/openitcockpit-agent/files.ini'
         sh 'cp example/http_example.ini package/etc/openitcockpit-agent/http.ini'
+        sh 'cp example/redfish_example.ini package/etc/openitcockpit-agent/redfish.ini'
+        // Contains the passwords of the BMCs
+        sh 'chmod 600 package/etc/openitcockpit-agent/redfish.ini'
         sh 'cp build/package/openitcockpit-agent.init package/etc/openitcockpit-agent/init/openitcockpit-agent.init'
         sh 'cp build/package/openitcockpit-agent.service package/etc/openitcockpit-agent/init/openitcockpit-agent.service'
         sh "cp release/linux/$GOARCH/$BINNAME package/usr/bin/$BINNAME"

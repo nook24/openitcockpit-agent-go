@@ -774,3 +774,74 @@ func TestReadHTTPConfig(t *testing.T) {
 		t.Error("expected invalid status error")
 	}
 }
+
+func TestReadRedfishConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "redfish.ini")
+	content := "[server01]\n" +
+		"  url = https://10.0.0.10/redfish/v1/\n" +
+		"  username = monitoring\n" +
+		"  password = `pass#word;1`\n" +
+		"  skip_verify = true\n" +
+		"  enabled = true\n" +
+		"[server02]\n" +
+		"  url = https://bmc02.example.com:8443\n" +
+		"  fingerprint = AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89\n" +
+		"  interval = 10\n" +
+		"  timeout = 5\n" +
+		"  eventlog = false\n" +
+		"  eventlog_window = 3600\n" +
+		"  eventlog_services = ^Sel$\n" +
+		"  enabled = true\n" +
+		"[plain_http]\n" +
+		"  url = http://10.0.0.11\n" +
+		"  enabled = true\n" +
+		"[plain_http_allowed]\n" +
+		"  url = http://10.0.0.12\n" +
+		"  allow_http = true\n" +
+		"  enabled = true\n" +
+		"[invalid_fingerprint]\n" +
+		"  url = https://10.0.0.13\n" +
+		"  fingerprint = abc\n" +
+		"  enabled = true\n" +
+		"[disabled]\n" +
+		"  url = https://10.0.0.14\n" +
+		"  enabled = false\n"
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	definitions, err := unmarshalRedfish(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]*RedfishDefinition{}
+	for _, d := range definitions {
+		byName[d.Name] = d
+	}
+	if len(definitions) != 5 {
+		t.Fatalf("expected 5 enabled definitions, got %d", len(definitions))
+	}
+
+	d := byName["server01"]
+	if d.ConfigError != "" || d.URL != "https://10.0.0.10" || d.Password != "pass#word;1" || !d.SkipVerify {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if d.Interval != 300 || d.Timeout != 30 || !*d.Eventlog || d.EventlogWindow != 86400 || !d.EventlogServicesRegexp.MatchString("Sel") || d.EventlogServicesRegexp.MatchString("Lclog") {
+		t.Errorf("unexpected defaults: %+v", d)
+	}
+
+	d = byName["server02"]
+	if d.ConfigError != "" || d.URL != "https://bmc02.example.com:8443" || len(d.FingerprintBytes) != 32 || d.Interval != 60 || d.Timeout != 5 || *d.Eventlog || d.EventlogWindow != 3600 || d.EventlogServicesRegexp.MatchString("IML") {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+
+	if !strings.Contains(byName["plain_http"].ConfigError, "plain text") {
+		t.Errorf("expected an error for http://: %s", byName["plain_http"].ConfigError)
+	}
+	if byName["plain_http_allowed"].ConfigError != "" {
+		t.Errorf("unexpected error: %s", byName["plain_http_allowed"].ConfigError)
+	}
+	if !strings.Contains(byName["invalid_fingerprint"].ConfigError, "invalid fingerprint") {
+		t.Errorf("expected an error for the fingerprint: %s", byName["invalid_fingerprint"].ConfigError)
+	}
+}

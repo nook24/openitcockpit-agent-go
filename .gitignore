@@ -40,6 +40,7 @@ vendor/
 /files.ini
 /http.ini
 /perfcounters.ini
+/redfish.ini
 /__debug_bin
 /agent.log
 /auth.json

@@ -208,6 +208,7 @@ Please see the [full documentation](https://github.com/openITCOCKPIT/openitcockp
 | Postfix Mail Queue           | -                               | ✅                                                   | -                           | ✅              |
 | Processes                    | ✅                              | ✅                                                   | ✅                          | ✅              |
 | Proxmox VE                   | -                               | ✅                                                   | -                           | -               |
+| Redfish (BMC)                | ✅ via network                  | ✅ via network                                       | ✅ via network              | ✅ via network  |
 | S.M.A.R.T.                   | ✅ smartctl                     | ✅ smartctl                                          | ✅ smartctl                 | ✅ smartctl     |
 | Security                     | ✅ firewall, Defender/antivirus | ✅ SELinux, AppArmor                                 | ✅ FileVault, SIP, firewall | -               |
 | Sensors                      | -                               | ✅                                                   | ✅                          | -               |
@@ -220,9 +221,11 @@ Please see the [full documentation](https://github.com/openITCOCKPIT/openitcockp
 | Windows Scheduled Tasks      | ✅                              | -                                                    | -                           | -               |
 | ZFS                          | -                               | ✅                                                   | -                           | ✅              |
 
-Logfiles, Certificates, Files & Directories, HTTP(S) and Windows Performance Counters are configured in separate INI files.
+Logfiles, Certificates, Files & Directories, HTTP(S), Redfish and Windows Performance Counters are configured in separate INI files.
 See the examples in the [example](example/) directory. S.M.A.R.T. requires `smartctl` of smartmontools 7.0 or newer.
 Ceph, Postfix (3.1 or newer), Proxmox VE, S.M.A.R.T. and ZFS are enabled automatically if the required tools are installed.
+Redfish monitors the hardware of servers (Dell iDRAC, HPE iLO, Lenovo XClarity, Supermicro, ...) through the API of their BMCs,
+so a single agent in the management network can monitor many servers.
 
 ### Advanced Checks
 

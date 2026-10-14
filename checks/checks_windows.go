@@ -20,6 +20,7 @@ func getPlatformChecks() []Check {
 		&CheckCertificate{},
 		&CheckFile{},
 		&CheckHTTP{},
+		&CheckRedfish{},
 		&CheckSmart{},
 		&CheckSecurity{},
 		&CheckWindowsScheduledTasks{},

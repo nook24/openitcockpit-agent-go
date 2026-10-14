@@ -241,6 +241,7 @@ type configurationPush struct {
 	FileConfiguration        *string `json:"file_configuration,omitempty"`
 	HTTPConfiguration        *string `json:"http_configuration,omitempty"`
 	PerfCounterConfiguration *string `json:"perfcounter_configuration,omitempty"`
+	RedfishConfiguration     *string `json:"redfish_configuration,omitempty"`
 }
 
 // optionalConfigurationFile is a configuration file which only gets overwritten if it is part of a configuration push
@@ -258,6 +259,7 @@ func (w *handler) optionalConfigurationFiles(r *configurationPush) []optionalCon
 		{"file", &r.FileConfiguration, w.Configuration.ReadFileConfiguration, w.Configuration.SaveFileConfiguration},
 		{"http", &r.HTTPConfiguration, w.Configuration.ReadHTTPConfiguration, w.Configuration.SaveHTTPConfiguration},
 		{"perfcounter", &r.PerfCounterConfiguration, w.Configuration.ReadPerfCounterConfiguration, w.Configuration.SavePerfCounterConfiguration},
+		{"redfish", &r.RedfishConfiguration, w.Configuration.ReadRedfishConfiguration, w.Configuration.SaveRedfishConfiguration},
 	}
 }
 
