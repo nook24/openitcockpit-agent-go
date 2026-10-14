@@ -136,6 +136,7 @@ type Configuration struct {
 	Ceph            bool  `mapstructure:"ceph"`
 	Smart           bool  `mapstructure:"smart"`
 	Proxmox         bool  `mapstructure:"proxmox"`
+	Postfix         bool  `mapstructure:"postfix"`
 
 	// Alfresco
 
@@ -210,6 +211,7 @@ var defaultValue = map[string]interface{}{
 	"ceph":                    true,
 	"smart":                   true,
 	"proxmox":                 true,
+	"postfix":                 true,
 	"wineventlog-logtypes":    "System,Application",
 	"wineventlog-age":         3600,
 	"wineventlog-cache":       3600,

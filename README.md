@@ -205,6 +205,7 @@ Please see the [full documentation](https://github.com/openITCOCKPIT/openitcockp
 | Network Interfaces           | ✅                              | ✅                                                   | ✅                          | ✅              |
 | Network IO                   | ✅                              | ✅                                                   | ✅                          | ✅              |
 | NTP                          | ✅                              | ✅                                                   | ✅ SNTP                     | ✅ ntpd, SNTP   |
+| Postfix Mail Queue           | -                               | ✅                                                   | -                           | ✅              |
 | Processes                    | ✅                              | ✅                                                   | ✅                          | ✅              |
 | Proxmox VE                   | -                               | ✅                                                   | -                           | -               |
 | S.M.A.R.T.                   | ✅ smartctl                     | ✅ smartctl                                          | ✅ smartctl                 | ✅ smartctl     |
@@ -221,7 +222,7 @@ Please see the [full documentation](https://github.com/openITCOCKPIT/openitcockp
 
 Logfiles, Certificates, Files & Directories, HTTP(S) and Windows Performance Counters are configured in separate INI files.
 See the examples in the [example](example/) directory. S.M.A.R.T. requires `smartctl` of smartmontools 7.0 or newer.
-Ceph, Proxmox VE, S.M.A.R.T. and ZFS are enabled automatically if the required tools are installed.
+Ceph, Postfix (3.1 or newer), Proxmox VE, S.M.A.R.T. and ZFS are enabled automatically if the required tools are installed.
 
 ### Advanced Checks
 
