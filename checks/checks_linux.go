@@ -32,6 +32,7 @@ func getPlatformChecks() []Check {
 		&CheckLvm{},
 		&CheckMounts{},
 		&CheckNetworkPorts{},
+		&CheckIpmi{},
 		&CheckSystemHealth{},
 	}
 

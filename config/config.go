@@ -142,6 +142,7 @@ type Configuration struct {
 	Lvm             bool  `mapstructure:"lvm"`
 	Mounts          bool  `mapstructure:"mounts"`
 	NetworkPorts    bool  `mapstructure:"networkports"`
+	Ipmi            bool  `mapstructure:"ipmi"`
 
 	// Alfresco
 
@@ -152,6 +153,10 @@ type Configuration struct {
 	JmxPath     string `mapstructure:"alfresco-jmxpath"`
 	JmxQuery    string `mapstructure:"alfresco-jmxquery"`
 	JavaPath    string `mapstructure:"alfresco-javapath"`
+
+	// IPMI: interval of the background collection and time window of the SEL entries in seconds
+	IpmiInterval  int64 `mapstructure:"ipmi-interval"`
+	IpmiSelWindow int64 `mapstructure:"ipmi-sel-window"`
 
 	// Windows scheduled tasks: Also report the tasks of the \Microsoft\ folder
 	WindowsTasksIncludeMicrosoft bool `mapstructure:"winscheduledtasks-include-microsoft"`
@@ -222,6 +227,9 @@ var defaultValue = map[string]interface{}{
 	"lvm":                     true,
 	"mounts":                  true,
 	"networkports":            true,
+	"ipmi":                    true,
+	"ipmi-interval":           60,
+	"ipmi-sel-window":         86400,
 	"wineventlog-logtypes":    "System,Application",
 	"wineventlog-age":         3600,
 	"wineventlog-cache":       3600,
