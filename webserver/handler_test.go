@@ -230,3 +230,49 @@ func TestWebserverHandlerConfig(t *testing.T) {
 
 	w.Shutdown()
 }
+
+func TestWebserverHandlerAutoTLSCreatesDirectories(t *testing.T) {
+	// Every file is stored in its own directory, which does not exist yet
+	dir := t.TempDir()
+	cfg := &config.Configuration{
+		AutoSslKeyFile: filepath.Join(dir, "private", "agent.key"),
+		AutoSslCsrFile: filepath.Join(dir, "csr", "agent.csr"),
+		AutoSslCrtFile: filepath.Join(dir, "certs", "agent.crt"),
+		AutoSslCaFile:  filepath.Join(dir, "ca", "server_ca.crt"),
+	}
+	w := &handler{
+		StateInput:    make(chan []byte),
+		Configuration: cfg,
+	}
+	ts := httptest.NewServer(w.Handler())
+	defer ts.Close()
+
+	res, err := http.Get(ts.URL + "/autotls?domain=agent.example.org")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected status code of the csr request: %d", res.StatusCode)
+	}
+	for _, file := range []string{cfg.AutoSslKeyFile, cfg.AutoSslCsrFile} {
+		if _, err := os.Stat(file); err != nil {
+			t.Errorf("file was not created: %s", err)
+		}
+	}
+
+	body, _ := json.Marshal(updateCrtRequest{Signed: "certificate", CA: "ca"})
+	res, err = http.Post(ts.URL+"/autotls", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected status code of the certificate update: %d", res.StatusCode)
+	}
+	for file, content := range map[string]string{cfg.AutoSslCrtFile: "certificate", cfg.AutoSslCaFile: "ca"} {
+		if data, err := os.ReadFile(file); err != nil || string(data) != content {
+			t.Errorf("unexpected content of %s: %q %v", file, data, err)
+		}
+	}
+}

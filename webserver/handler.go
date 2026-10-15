@@ -414,7 +414,9 @@ func (w *handler) handlerCsr(response http.ResponseWriter, request *http.Request
 		return
 	}
 	log.Infoln("Webserver: CSR generated")
-	if err := os.WriteFile(w.Configuration.AutoSslCsrFile, csr, 0600); err != nil {
+	if err := utils.CreateParentDirectory(w.Configuration.AutoSslCsrFile); err != nil {
+		log.Errorln("Webserver: could not store csr: ", err)
+	} else if err := os.WriteFile(w.Configuration.AutoSslCsrFile, csr, 0600); err != nil {
 		log.Infoln("Webserver: could not store csr: ", err)
 	}
 	js, err := json.Marshal(csrResponse{Csr: string(csr)})
@@ -453,6 +455,15 @@ func (w *handler) handlerUpdateCert(response http.ResponseWriter, request *http.
 		log.Errorln("Webserver: Could not parse certificate update request: ", err)
 		http.Error(response, "internal server error", http.StatusInternalServerError)
 		return
+	}
+
+	// The directories can be changed with autossl-crt-file and autossl-ca-file and may not exist yet
+	for _, file := range []string{w.Configuration.AutoSslCrtFile, w.Configuration.AutoSslCaFile} {
+		if err := utils.CreateParentDirectory(file); err != nil {
+			log.Errorln("Webserver: Could not write certificate file: ", err)
+			http.Error(response, "internal server error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	if err := os.WriteFile(w.Configuration.AutoSslCrtFile, []byte(crtReq.Signed), 0600); err != nil {
