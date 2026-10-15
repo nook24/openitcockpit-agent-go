@@ -83,6 +83,7 @@ func securityParts() []securityPart {
 		{"firewall", func(ctx context.Context) (interface{}, error) { return getWindowsFirewall() }},
 		{"defender", func(ctx context.Context) (interface{}, error) { return getWindowsDefender() }},
 		{"antivirus", func(ctx context.Context) (interface{}, error) { return getAntivirusProducts() }},
+		{"bitlocker", func(ctx context.Context) (interface{}, error) { return getBitLocker() }},
 	}
 }
 

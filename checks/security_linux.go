@@ -30,6 +30,7 @@ func securityParts() []securityPart {
 	return []securityPart{
 		{"selinux", func(ctx context.Context) (interface{}, error) { return getSELinux() }},
 		{"apparmor", func(ctx context.Context) (interface{}, error) { return getAppArmor() }},
+		{"firewall", func(ctx context.Context) (interface{}, error) { return getLinuxFirewall(ctx) }},
 	}
 }
 

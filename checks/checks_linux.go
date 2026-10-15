@@ -28,6 +28,9 @@ func getPlatformChecks() []Check {
 		&CheckCeph{},
 		&CheckProxmox{},
 		&CheckPostfix{},
+		&CheckExim{},
+		&CheckLvm{},
+		&CheckMounts{},
 		&CheckSystemHealth{},
 	}
 

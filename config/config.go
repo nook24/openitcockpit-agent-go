@@ -138,6 +138,9 @@ type Configuration struct {
 	Smart           bool  `mapstructure:"smart"`
 	Proxmox         bool  `mapstructure:"proxmox"`
 	Postfix         bool  `mapstructure:"postfix"`
+	Exim            bool  `mapstructure:"exim"`
+	Lvm             bool  `mapstructure:"lvm"`
+	Mounts          bool  `mapstructure:"mounts"`
 
 	// Alfresco
 
@@ -214,6 +217,9 @@ var defaultValue = map[string]interface{}{
 	"smart":                   true,
 	"proxmox":                 true,
 	"postfix":                 true,
+	"exim":                    true,
+	"lvm":                     true,
+	"mounts":                  true,
 	"wineventlog-logtypes":    "System,Application",
 	"wineventlog-age":         3600,
 	"wineventlog-cache":       3600,

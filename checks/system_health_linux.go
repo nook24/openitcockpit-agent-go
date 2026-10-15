@@ -34,7 +34,8 @@ type oomKillCounterState struct {
 }
 
 // CheckSystemHealth gathers Linux kernel health information like software RAID state,
-// OOM kills, file descriptor usage, conntrack table usage and pressure stall information
+// OOM kills, file descriptor usage, conntrack table usage, pressure stall information,
+// bonding, filesystem errors and memory errors (EDAC)
 type CheckSystemHealth struct {
 	// procPath and sysPath can be changed by tests
 	procPath string
@@ -131,6 +132,9 @@ func (c *CheckSystemHealth) Run(ctx context.Context) (interface{}, error) {
 		{"file_descriptors", func() (interface{}, error) { return getFileDescriptors(procPath) }},
 		{"conntrack", func() (interface{}, error) { return getConntrack(procPath) }},
 		{"pressure", func() (interface{}, error) { return getPressure(proc) }},
+		{"bonding", func() (interface{}, error) { return getBonds(procPath) }},
+		{"filesystem_errors", func() (interface{}, error) { return getFilesystemErrors(procPath, sysPath) }},
+		{"edac", func() (interface{}, error) { return getEdac(sysPath) }},
 	}
 	for _, part := range parts {
 		if err := ctx.Err(); err != nil {
