@@ -1,7 +1,6 @@
 package packagemanager
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -477,8 +476,13 @@ func TestDnfManager_getInstalledPackagesWithCancel(t *testing.T) {
 		t.Fatalf("Error getting installed packages: %v", err)
 	}
 
-	if !strings.HasPrefix(output, "acl") {
-		t.Errorf("Unexpected output, got: %s", output)
+	// The installed packages depend on the system (acl is not installed in minimal containers), so the output has to be parsable
+	packages, err := dnf.parseDnfListInstalledOutput(output)
+	if err != nil {
+		t.Fatalf("Error parsing the dnf output: %v", err)
+	}
+	if len(packages) == 0 {
+		t.Errorf("No packages found in the dnf output: %s", output)
 	}
 }
 

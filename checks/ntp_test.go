@@ -2,44 +2,31 @@ package checks
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"math"
 	"testing"
 	"time"
 )
 
 func TestChecksCheckNtp(t *testing.T) {
-
 	check := &CheckNtp{}
-
 	cr, err := check.Run(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	result, ok := cr.(*resultNtp)
-
 	if !ok {
-		t.Fatal("False type")
+		t.Fatalf("unexpected result type %T", cr)
 	}
 
-	time.Sleep(2 * time.Second)
-	if result.SyncStatus == false {
-		fmt.Printf("Server is not using an NTP server")
-
-		if (time.Now().Unix() - result.Timestamp) < 1 {
-			// we slept for 2 seconds both timestamps need be at least 1 second apart
-			t.Fatal(" we slept for 2 seconds both timestamps need be at least 1 second apart")
-		}
-
-	} else {
-		fmt.Printf("Server using an NTP server")
-		//if result.Offset == 0 {
-		//	t.Fatal("NTP offset is never exactly 0")
-		//}
+	// The timestamps are used by openITCOCKPIT to compare the clocks, if the system is not synchronized
+	now := time.Now()
+	if diff := now.Unix() - result.Timestamp; diff < -5 || diff > 5 {
+		t.Errorf("unexpected timestamp %d (now %d)", result.Timestamp, now.Unix())
 	}
-
-	js, _ := json.Marshal(result)
-	fmt.Println(string(js))
-
+	if diff := now.UnixMicro() - result.TimestampMicro; diff < -5e6 || diff > 5e6 {
+		t.Errorf("unexpected timestamp in microseconds %d (now %d)", result.TimestampMicro, now.UnixMicro())
+	}
+	if math.IsNaN(result.Offset) || math.IsInf(result.Offset, 0) {
+		t.Errorf("invalid offset %v", result.Offset)
+	}
 }

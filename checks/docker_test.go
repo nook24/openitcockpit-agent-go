@@ -39,18 +39,15 @@ func TestChecksCheckDocker(t *testing.T) {
 
 	}
 
-	if len(results) == 0 {
-		fmt.Println("No running docker containers found")
-	}
-
-	if len(results) > 0 {
-		for _, result := range results {
-			if result.MemoryUsed == 0.0 {
-				t.Fatal("Container memory usage is 0.0 - thats suspect!")
-			}
+	// Only running containers use memory, stopped containers report 0
+	for _, result := range results {
+		if result.State == "running" && result.MemoryUsed <= 0 {
+			t.Errorf("running container %s uses no memory", result.Name)
+		}
+		if result.CpuPercentage < 0 || result.MemoryPercentage < 0 {
+			t.Errorf("container %s: invalid values %+v", result.Name, result)
 		}
 	}
-
 }
 
 func TestDockerRestartsLastHour(t *testing.T) {
