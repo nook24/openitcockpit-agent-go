@@ -24,6 +24,9 @@ md3 : active raid1 sdg1[2] sdf1[0]
 md127 : inactive sdh[1](S) sdi[0](S)
       6306 blocks super external:imsm
 
+md4 : inactive sdj1[0](S)
+      1046528 blocks super 1.2
+
 unused devices: <none>
 `
 
@@ -42,6 +45,10 @@ func newTestProc(t *testing.T) string {
 	t.Helper()
 	procPath := t.TempDir()
 	writeTestProcFile(t, procPath, "mdstat", testMdstat)
+	// sysfs of the md devices, see runSystemHealth
+	for name, version := range map[string]string{"md1": "1.2", "md2": "1.2", "md3": "1.2", "md4": "1.2", "md127": "external:imsm"} {
+		writeTestProcFile(t, procPath, "sys-test/block/"+name+"/md/metadata_version", version+"\n")
+	}
 	writeTestProcFile(t, procPath, "vmstat", "nr_free_pages 123\noom_kill 2\nnr_zone_active_anon 5\n")
 	writeTestProcFile(t, procPath, "sys/fs/file-nr", "1000\t0\t4000\n")
 	writeTestProcFile(t, procPath, "sys/net/netfilter/nf_conntrack_count", "300\n")
@@ -54,7 +61,7 @@ func newTestProc(t *testing.T) string {
 
 func runSystemHealth(t *testing.T, procPath string) map[string]interface{} {
 	t.Helper()
-	r, err := (&CheckSystemHealth{procPath: procPath}).Run(context.Background())
+	r, err := (&CheckSystemHealth{procPath: procPath, sysPath: filepath.Join(procPath, "sys-test")}).Run(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,8 +88,8 @@ func TestCheckSystemHealth(t *testing.T) {
 	result := runSystemHealth(t, procPath)
 
 	raids := result["raid"].([]*resultRaid)
-	if len(raids) != 4 {
-		t.Fatalf("expected 4 md devices, got %d", len(raids))
+	if len(raids) != 5 {
+		t.Fatalf("expected 5 md devices, got %d", len(raids))
 	}
 	byName := map[string]*resultRaid{}
 	for _, raid := range raids {
@@ -97,8 +104,15 @@ func TestCheckSystemHealth(t *testing.T) {
 	if md := byName["md3"]; md.ActivityState != "recovering" || md.SyncPercent != 8.5 || md.DisksDown != 1 {
 		t.Errorf("unexpected md3: %+v", md)
 	}
-	if md := byName["md127"]; md.ActivityState != "inactive" || md.DisksSpare != 2 {
+	if md := byName["md127"]; md.ActivityState != "inactive" || md.DisksSpare != 2 || md.MetadataVersion != "external:imsm" {
 		t.Errorf("unexpected md127: %+v", md)
+	}
+	// An inactive array, which could not be started because of missing disks
+	if md := byName["md4"]; md.ActivityState != "inactive" || md.MetadataVersion != "1.2" {
+		t.Errorf("unexpected md4: %+v", md)
+	}
+	if md := byName["md1"]; md.MetadataVersion != "1.2" {
+		t.Errorf("unexpected metadata version of md1: %+v", md)
 	}
 
 	oom := result["oom_kills"].(*resultOomKills)

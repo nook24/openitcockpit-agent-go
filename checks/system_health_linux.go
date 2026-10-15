@@ -36,8 +36,9 @@ type oomKillCounterState struct {
 // CheckSystemHealth gathers Linux kernel health information like software RAID state,
 // OOM kills, file descriptor usage, conntrack table usage and pressure stall information
 type CheckSystemHealth struct {
-	// procPath can be changed by tests
+	// procPath and sysPath can be changed by tests
 	procPath string
+	sysPath  string
 }
 
 // Name will be used in the response as check name
@@ -57,6 +58,8 @@ type resultRaid struct {
 	SyncPercent       float64  `json:"sync_percent"`        // Progress of the current resync/recovery/check
 	SyncFinishMinutes float64  `json:"sync_finish_minutes"` // Estimated time until the current sync finishes
 	FailedDevices     []string `json:"failed_devices"`      // e.g.: ["sdb1"]
+	// Superblock format, e.g.: 1.2, 0.90, external:imsm (container of Intel Matrix Storage) or external:/md127/0 (volume of a container)
+	MetadataVersion string `json:"metadata_version"`
 }
 
 type resultOomKillEvent struct {
@@ -107,6 +110,10 @@ func (c *CheckSystemHealth) Run(ctx context.Context) (interface{}, error) {
 	if procPath == "" {
 		procPath = procfs.DefaultMountPoint
 	}
+	sysPath := c.sysPath
+	if sysPath == "" {
+		sysPath = "/sys"
+	}
 
 	proc, err := procfs.NewFS(procPath)
 	if err != nil {
@@ -119,7 +126,7 @@ func (c *CheckSystemHealth) Run(ctx context.Context) (interface{}, error) {
 		name string
 		run  func() (interface{}, error)
 	}{
-		{"raid", func() (interface{}, error) { return getRaidStats(proc) }},
+		{"raid", func() (interface{}, error) { return getRaidStats(proc, sysPath) }},
 		{"oom_kills", func() (interface{}, error) { return getOomKills(procPath) }},
 		{"file_descriptors", func() (interface{}, error) { return getFileDescriptors(procPath) }},
 		{"conntrack", func() (interface{}, error) { return getConntrack(procPath) }},
@@ -145,7 +152,7 @@ func (c *CheckSystemHealth) Configure(config *config.Configuration) (bool, error
 	return config.SystemHealth, nil
 }
 
-func getRaidStats(proc procfs.FS) ([]*resultRaid, error) {
+func getRaidStats(proc procfs.FS, sysPath string) ([]*resultRaid, error) {
 	mdstats, err := proc.MDStat()
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -169,6 +176,9 @@ func getRaidStats(proc procfs.FS) ([]*resultRaid, error) {
 			SyncPercent:       md.BlocksSyncedPct,
 			SyncFinishMinutes: md.BlocksSyncedFinishTime,
 			FailedDevices:     []string{},
+			// An inactive array (e.g. after a boot with missing disks) and a container of Intel Matrix Storage look the same
+			// in /proc/mdstat. Only the metadata version shows the difference
+			MetadataVersion: readMdMetadataVersion(sysPath, md.Name),
 		}
 		for _, device := range md.Devices {
 			if device.Faulty {
@@ -178,6 +188,15 @@ func getRaidStats(proc procfs.FS) ([]*resultRaid, error) {
 		result = append(result, raid)
 	}
 	return result, nil
+}
+
+// readMdMetadataVersion returns the metadata version of an md device or an empty string if it is not available
+func readMdMetadataVersion(sysPath, name string) string {
+	data, err := os.ReadFile(filepath.Join(sysPath, "block", name, "md", "metadata_version"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 func getOomKills(procPath string) (*resultOomKills, error) {
