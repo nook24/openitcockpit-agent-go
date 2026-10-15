@@ -24,5 +24,6 @@ func getPlatformChecks() []Check {
 		&CheckRedfish{},
 		&CheckSmart{},
 		&CheckSecurity{},
+		&CheckNetworkPorts{},
 	}
 }

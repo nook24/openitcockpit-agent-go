@@ -25,5 +25,6 @@ func getPlatformChecks() []Check {
 		&CheckSecurity{},
 		&CheckWindowsScheduledTasks{},
 		&CheckWindowsPerfCounter{},
+		&CheckNetworkPorts{},
 	}
 }

@@ -207,6 +207,7 @@ Please see the [full documentation](https://github.com/openITCOCKPIT/openitcockp
 | Missing Mounts (fstab)       | -                                          | ✅                                                                                                         | -                           | ✅              |
 | Network Interfaces           | ✅                                         | ✅                                                                                                         | ✅                          | ✅              |
 | Network IO                   | ✅                                         | ✅                                                                                                         | ✅                          | ✅              |
+| Network Ports                | ✅                                         | ✅ incl. TCP errors                                                                                        | ✅                          | ✅              |
 | NTP                          | ✅                                         | ✅                                                                                                         | ✅ SNTP                     | ✅ ntpd, SNTP   |
 | Postfix Mail Queue           | -                                          | ✅                                                                                                         | -                           | ✅              |
 | Processes                    | ✅                                         | ✅                                                                                                         | ✅                          | ✅              |
@@ -227,6 +228,7 @@ Please see the [full documentation](https://github.com/openITCOCKPIT/openitcockp
 Logfiles, Certificates, Files & Directories, HTTP(S), Redfish and Windows Performance Counters are configured in separate INI files.
 See the examples in the [example](example/) directory. S.M.A.R.T. requires `smartctl` of smartmontools 7.0 or newer.
 Ceph, Exim, LVM, Postfix (3.1 or newer), Proxmox VE, S.M.A.R.T. and ZFS are enabled automatically if the required tools are installed.
+Network Ports reports the listening ports with their processes, the TCP connections per state and the usage of the ephemeral ports.
 Redfish monitors the hardware of servers (Dell iDRAC, HPE iLO, Lenovo XClarity, Supermicro, ...) through the API of their BMCs,
 so a single agent in the management network can monitor many servers.
 

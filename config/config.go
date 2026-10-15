@@ -141,6 +141,7 @@ type Configuration struct {
 	Exim            bool  `mapstructure:"exim"`
 	Lvm             bool  `mapstructure:"lvm"`
 	Mounts          bool  `mapstructure:"mounts"`
+	NetworkPorts    bool  `mapstructure:"networkports"`
 
 	// Alfresco
 
@@ -220,6 +221,7 @@ var defaultValue = map[string]interface{}{
 	"exim":                    true,
 	"lvm":                     true,
 	"mounts":                  true,
+	"networkports":            true,
 	"wineventlog-logtypes":    "System,Application",
 	"wineventlog-age":         3600,
 	"wineventlog-cache":       3600,
