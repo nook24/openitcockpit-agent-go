@@ -63,6 +63,10 @@ func newIpmiReplayBMC(recording *ipmiRecording) *ipmiReplayBMC {
 	}
 	firstSet := map[string]bool{}
 	for _, ex := range recording.Exchanges {
+		if ex.Code == "" {
+			// No answer of the BMC (dumps since version 1.1), e.g. a timeout
+			continue
+		}
 		netfn, _ := strconv.ParseUint(strings.TrimPrefix(ex.NetFn, "0x"), 16, 8)
 		cmd, _ := strconv.ParseUint(strings.TrimPrefix(ex.Cmd, "0x"), 16, 8)
 		request, _ := hex.DecodeString(ex.Request)

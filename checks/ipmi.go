@@ -24,7 +24,13 @@ const (
 
 // newIpmiClient creates the client for the local BMC, can be changed by tests
 var newIpmiClient = func() (*client.Client, error) {
-	return client.NewOpenClient()
+	c, err := client.NewOpenClient()
+	if err != nil {
+		return nil, err
+	}
+	// Windows: only the WMI COM interface. The PowerShell fallback of go-ipmi starts powershell.exe for every command,
+	// which would be several hundred processes per collection. No effect on Linux.
+	return c.WithOpenBackend(client.OpenBackendCOM), nil
 }
 
 // CheckIpmi monitors the local BMC through the system interface (in-band): sensors, chassis status and SEL.
