@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // installFakeCommand creates a shell script in a temporary directory of the PATH
@@ -125,5 +126,73 @@ esac
 	}
 	if pools, ok := r.(map[string]interface{})["pools"].(map[string]string); !ok || !strings.Contains(pools["error"], "access denied") {
 		t.Errorf("expected an error for the pools: %+v", r)
+	}
+}
+
+func TestCheckCephCache(t *testing.T) {
+	dir := t.TempDir()
+	status := writeFixture(t, dir, "status.json", testCephStatusReef)
+	df := writeFixture(t, dir, "df.json", testCephDf)
+	calls := filepath.Join(dir, "calls")
+	installFakeCommand(t, dir, "ceph", `
+echo "$1" >> `+calls+`
+case "$1" in
+  status) cat `+status+` ;;
+  df) cat `+df+` ;;
+esac
+`)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	countCalls := func() int {
+		data, _ := os.ReadFile(calls)
+		return strings.Count(string(data), "\n")
+	}
+
+	check := &CheckCeph{}
+	first, err := check.Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The following runs within the cache time return the same result without calling ceph
+	for i := 0; i < 3; i++ {
+		r, err := check.Run(context.Background())
+		if err != nil || r == nil {
+			t.Fatal(err)
+		}
+		if r.(map[string]interface{})["health"] != first.(map[string]interface{})["health"] {
+			t.Error("expected the cached result")
+		}
+	}
+	if n := countCalls(); n != 2 {
+		t.Errorf("expected 2 calls of ceph (status, df), got %d", n)
+	}
+
+	// After the cache time ceph is called again
+	check.cachedAt = time.Now().Add(-cephCacheTime - time.Second)
+	if _, err := check.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if n := countCalls(); n != 4 {
+		t.Errorf("expected 4 calls of ceph, got %d", n)
+	}
+
+	// Errors are cached as well
+	installFakeCommand(t, dir, "ceph", `echo "$1" >> `+calls+`; echo "timed out" >&2; exit 1`)
+	check = &CheckCeph{}
+	for i := 0; i < 2; i++ {
+		if _, err := check.Run(context.Background()); err == nil || !strings.Contains(err.Error(), "monitors are not reachable") {
+			t.Errorf("expected a timeout error, got: %v", err)
+		}
+	}
+	if n := countCalls(); n != 5 {
+		t.Errorf("expected 5 calls of ceph, got %d", n)
+	}
+
+	// A canceled run is not cached
+	check = &CheckCeph{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _ = check.Run(ctx)
+	if !check.cachedAt.IsZero() {
+		t.Error("a canceled run should not be cached")
 	}
 }

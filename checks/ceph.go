@@ -18,11 +18,17 @@ const (
 	// Seconds the ceph command waits for a monitor
 	cephConnectTimeout = "10"
 	cephCommandTimeout = 20 * time.Second
+	// The ceph command needs about 0.4 seconds of CPU time per call, so the result is cached for this time
+	cephCacheTime = 2 * time.Minute
 )
 
 // CheckCeph gathers the state of a Ceph cluster with the ceph command line tool.
 // On Proxmox VE every node with Ceph installed has access to the cluster.
 type CheckCeph struct {
+	cacheTime time.Duration // can be changed by tests, default cephCacheTime
+	cached    interface{}
+	cachedErr error
+	cachedAt  time.Time
 }
 
 // Name will be used in the response as check name
@@ -178,6 +184,24 @@ type cephDfJSON struct {
 // ctx can be canceled and runs the timeout
 // CheckResult will be serialized after the return and should not change until the next call to Run
 func (c *CheckCeph) Run(ctx context.Context) (interface{}, error) {
+	cacheTime := c.cacheTime
+	if cacheTime == 0 {
+		cacheTime = cephCacheTime
+	}
+	if !c.cachedAt.IsZero() && time.Since(c.cachedAt) < cacheTime {
+		return c.cached, c.cachedErr
+	}
+
+	result, err := collectCeph(ctx)
+	// A canceled check run (e.g. timeout of all checks) is not cached, so the next run tries again
+	if ctx.Err() == nil {
+		c.cached, c.cachedErr, c.cachedAt = result, err, time.Now()
+	}
+	return result, err
+}
+
+// collectCeph runs "ceph status" and "ceph df"
+func collectCeph(ctx context.Context) (interface{}, error) {
 	statusOutput, err := runCephCommand(ctx, "status")
 	if err != nil {
 		return nil, err
