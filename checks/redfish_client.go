@@ -380,10 +380,16 @@ func (c *redfishClient) members(ctx context.Context, path string) ([]json.RawMes
 	}
 	members = uniqueRedfishMembers(members)
 
+	// Only members which are links have to be requested, members which are already expanded do not count
 	resolved := make([]json.RawMessage, 0, len(members))
-	for i, member := range members {
-		if i >= redfishMaxResolve {
-			break
+	requests := 0
+	for _, member := range members {
+		if isRedfishLink(member) {
+			if requests >= redfishMaxResolve {
+				c.warnings = append(c.warnings, fmt.Sprintf("%s: only the first %d of %d members were requested", path, redfishMaxResolve, len(members)))
+				break
+			}
+			requests++
 		}
 		resource, err := c.resolve(ctx, member)
 		if err != nil {
@@ -411,6 +417,16 @@ func uniqueRedfishMembers(members []json.RawMessage) []json.RawMessage {
 		unique = append(unique, member)
 	}
 	return unique
+}
+
+// isRedfishLink returns true if the JSON is only a link like {"@odata.id": "/redfish/v1/Systems/1"}
+func isRedfishLink(data json.RawMessage) bool {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(data, &object); err != nil {
+		return false
+	}
+	_, ok := object["@odata.id"]
+	return ok && len(object) == 1
 }
 
 // resolve requests a resource if the given JSON is only a link like {"@odata.id": "/redfish/v1/Systems/1"}

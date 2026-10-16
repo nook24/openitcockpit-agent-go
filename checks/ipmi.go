@@ -5,6 +5,7 @@ package checks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -22,8 +23,8 @@ const (
 	ipmiIdleTimeout = 10 * time.Minute
 )
 
-// newIpmiClient creates the client for the local BMC, can be changed by tests
-var newIpmiClient = func() (*client.Client, error) {
+// newIpmiClient creates the client for the local BMC
+func newIpmiClient() (*client.Client, error) {
 	c, err := client.NewOpenClient()
 	if err != nil {
 		return nil, err
@@ -46,6 +47,7 @@ func (c *CheckIpmi) Name() string {
 }
 
 type ipmiCollector struct {
+	newClient  func() (*client.Client, error) // nil: newIpmiClient
 	mutex      sync.Mutex
 	key        string
 	interval   time.Duration
@@ -69,6 +71,14 @@ var ipmiState = struct {
 func (c *CheckIpmi) Run(_ context.Context) (interface{}, error) {
 	ipmiState.Lock()
 	defer ipmiState.Unlock()
+
+	// Run without Configure (e.g. tests): a collector without interval would query the BMC without pause
+	if c.interval <= 0 {
+		c.interval = ipmiDefaultInterval * time.Second
+	}
+	if c.selWindow <= 0 {
+		c.selWindow = ipmiDefaultSelWindow * time.Second
+	}
 
 	key := fmt.Sprintf("%d|%d", c.interval, c.selWindow)
 	if ipmiState.collector != nil && ipmiState.collector.key != key {
@@ -163,7 +173,18 @@ func (r *ipmiCollector) collect() {
 		}
 	}()
 
-	result, err := collectIpmi(ctx, r.reader)
+	newClient := r.newClient
+	if newClient == nil {
+		newClient = newIpmiClient
+	}
+	result, err := protect("IPMI", func() (*resultIpmi, error) {
+		return collectIpmi(ctx, newClient, r.reader)
+	})
+	var panicErr *panicError
+	if errors.As(err, &panicErr) {
+		// The cached SDRs and SEL entries could be incomplete after a panic
+		r.reader = newIpmiReader(r.reader.selWindow)
+	}
 
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -177,8 +198,8 @@ func (r *ipmiCollector) collect() {
 	r.result = result
 }
 
-func collectIpmi(ctx context.Context, reader *ipmiReader) (*resultIpmi, error) {
-	c, err := newIpmiClient()
+func collectIpmi(ctx context.Context, newClient func() (*client.Client, error), reader *ipmiReader) (*resultIpmi, error) {
+	c, err := newClient()
 	if err != nil {
 		return nil, err
 	}

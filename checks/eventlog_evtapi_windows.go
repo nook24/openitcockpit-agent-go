@@ -174,6 +174,9 @@ func (c *CheckWindowsEventLog) updateEvtChannel(ctx context.Context, channel str
 		query = fmt.Sprintf("*[System[EventRecordID > %d]]", state.lastRecordID)
 	}
 
+	// Records which got written after evtLatestRecordID are returned by the query as well,
+	// so the highest record id which was actually read is the start of the next query
+	lastRecordID := latestRecordID
 	if query != "" {
 		// The records are read newest first, so the newest records are kept if there are more than maxRecords
 		newRecords, err := evtReadRecords(ctx, channel, query, renderContext, buffer, maxRecords)
@@ -185,11 +188,14 @@ func (c *CheckWindowsEventLog) updateEvtChannel(ctx context.Context, channel str
 		}
 		for i := len(newRecords) - 1; i >= 0; i-- {
 			state.records = append(state.records, newRecords[i])
+			if newRecords[i].Index > 0 && uint64(newRecords[i].Index) > lastRecordID {
+				lastRecordID = uint64(newRecords[i].Index)
+			}
 		}
 	}
 	state.initialized = true
-	if latestRecordID > state.lastRecordID {
-		state.lastRecordID = latestRecordID
+	if lastRecordID > state.lastRecordID {
+		state.lastRecordID = lastRecordID
 	}
 
 	// Discard records which are older than the time window

@@ -8,9 +8,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -579,5 +582,48 @@ func TestCheckRedfishCollectors(t *testing.T) {
 	redfishCollectors.Unlock()
 	if count != 1 {
 		t.Errorf("expected a single collector, got %d", count)
+	}
+}
+
+func TestRedfishMembersLimit(t *testing.T) {
+	// A log service with 300 expanded entries and a collection with 300 links
+	var requests atomic.Int64
+	mux := http.NewServeMux()
+	mux.HandleFunc("/redfish/v1/expanded", func(w http.ResponseWriter, r *http.Request) {
+		members := make([]map[string]interface{}, 300)
+		for i := range members {
+			members[i] = map[string]interface{}{"@odata.id": fmt.Sprintf("/redfish/v1/expanded/%d", i), "Id": strconv.Itoa(i), "Severity": "OK"}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"Members": members})
+	})
+	mux.HandleFunc("/redfish/v1/links", func(w http.ResponseWriter, r *http.Request) {
+		members := make([]map[string]string, 300)
+		for i := range members {
+			members[i] = map[string]string{"@odata.id": fmt.Sprintf("/redfish/v1/links/%d", i)}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"Members": members})
+	})
+	mux.HandleFunc("/redfish/v1/links/", func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		_ = json.NewEncoder(w).Encode(map[string]string{"@odata.id": r.URL.Path, "Id": path.Base(r.URL.Path)})
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	def := testRedfishDefinition(server.URL)
+	def.Username = ""
+	client := newRedfishClient(def)
+
+	// Expanded members do not count against the limit of the requests
+	members, err := client.members(context.Background(), "/redfish/v1/expanded")
+	if err != nil || len(members) != 300 {
+		t.Fatalf("expected 300 expanded members, got %d (%v)", len(members), err)
+	}
+	// Links are requested one by one up to the limit
+	members, err = client.members(context.Background(), "/redfish/v1/links")
+	if err != nil || len(members) != redfishMaxResolve || requests.Load() != redfishMaxResolve {
+		t.Fatalf("expected %d resolved members and requests, got %d and %d (%v)", redfishMaxResolve, len(members), requests.Load(), err)
+	}
+	if len(client.warnings) != 1 || !strings.Contains(client.warnings[0], "only the first 200 of 300 members") {
+		t.Errorf("expected a warning, got %v", client.warnings)
 	}
 }

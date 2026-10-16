@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,9 +15,19 @@ import (
 	"github.com/bougou/go-ipmi/pkg/types"
 )
 
+// skipIpmiCompletionCodesOnWindows skips replays which depend on completion codes of the BMC. go-ipmi only recognizes them,
+// if the error output starts with "Unable to send RAW command". On Windows a test binary of an agent which is not installed
+// logs a missing registry key before TestMain runs. The evaluation is the same on all platforms.
+func skipIpmiCompletionCodesOnWindows(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the replay of completion codes is not supported on Windows")
+	}
+}
+
 func collectIpmiReplay(t *testing.T, reader *ipmiReader, name string) *resultIpmi {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	// The replay executes the test binary for every command, which is slow with the race detector
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	c := newIpmiReplayClient(t, name)
 	if err := c.Connect(ctx); err != nil {
@@ -155,6 +166,19 @@ func TestIpmiReplayFailures(t *testing.T) {
 	}
 }
 
+func TestIpmiSelClearedWithPreInitEntries(t *testing.T) {
+	// The first read finds an empty SEL. Entries without timestamp (pre-init) which appear later are new.
+	reader := newIpmiReader(24 * time.Hour)
+	result := collectIpmiReplay(t, reader, "healthy.json")
+	if result.Sel == nil || result.Sel.Entries != 0 {
+		t.Fatalf("unexpected sel: %+v", result.Sel)
+	}
+	result = collectIpmiReplay(t, reader, "failures.json")
+	if result.Sel == nil || result.Sel.Entries != 15 || len(result.Sel.Events) != 8 {
+		t.Fatalf("expected the 8 warnings and critical entries as new events, got %+v", result.Sel)
+	}
+}
+
 func TestIpmiSelWindow(t *testing.T) {
 	reader := newIpmiReader(time.Hour)
 	reader.selPopulated = true
@@ -191,6 +215,7 @@ func TestIpmiDiscreteUndefinedBits(t *testing.T) {
 
 // Recordings of two Supermicro H11DSi-NT (AMD EPYC) with partially populated DIMM slots and fans
 func TestIpmiReplaySupermicro(t *testing.T) {
+	skipIpmiCompletionCodesOnWindows(t)
 	// ipmitool reports the firmware 1.52
 	reader := newIpmiReader(time.Hour)
 	if result := collectIpmiReplay(t, reader, "supermicro-h11dsi-a.json"); result.Device.FirmwareRevision != "1.52" {
@@ -258,6 +283,7 @@ func TestIpmiReplaySupermicro(t *testing.T) {
 // Recordings which must not be published (e.g. dumps of other companies) are tested with rules instead of expected values:
 // OITC_IPMI_PRIVATE_DUMPS=/path/to/dumps go test ./checks -run IpmiReplayPrivate
 func TestIpmiReplayPrivateDumps(t *testing.T) {
+	skipIpmiCompletionCodesOnWindows(t)
 	dir := os.Getenv("OITC_IPMI_PRIVATE_DUMPS")
 	if dir == "" {
 		t.Skip("OITC_IPMI_PRIVATE_DUMPS is not set")

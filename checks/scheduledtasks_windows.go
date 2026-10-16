@@ -100,7 +100,7 @@ func (c *CheckWindowsScheduledTasks) readTaskFolder(ctx context.Context, folder 
 		return err
 	}
 
-	path := oleutil.MustGetProperty(folder, "Path").ToString()
+	path := taskStringProperty(folder, "Path")
 	// The \Microsoft\ folder contains hundreds of tasks of Windows itself
 	if !c.includeMicrosoft && (strings.EqualFold(path, `\Microsoft`) || strings.HasPrefix(strings.ToLower(path), `\microsoft\`)) {
 		return nil
@@ -149,27 +149,33 @@ func readScheduledTask(task *ole.IDispatch) *resultWindowsScheduledTask {
 		if state, ok := windowsTaskStates[int32(variantInt(v))]; ok {
 			res.State = state
 		}
+		_ = v.Clear()
 	}
 	if v, err := oleutil.GetProperty(task, "Enabled"); err == nil {
 		res.Enabled, _ = v.Value().(bool)
+		_ = v.Clear()
 	}
 	if v, err := oleutil.GetProperty(task, "LastTaskResult"); err == nil {
 		// HRESULTs like 0x8007010B are negative as int32, but are documented and searched as unsigned value
 		res.LastTaskResult = int64(uint32(variantInt(v)))
+		_ = v.Clear()
 	}
 	if v, err := oleutil.GetProperty(task, "NumberOfMissedRuns"); err == nil {
 		res.MissedRuns = variantInt(v)
+		_ = v.Clear()
 	}
 	res.LastRunTime = taskTimeProperty(task, "LastRunTime")
 	res.NextRunTime = taskTimeProperty(task, "NextRunTime")
 	return res
 }
 
-func taskStringProperty(task *ole.IDispatch, name string) string {
-	v, err := oleutil.GetProperty(task, name)
+// taskStringProperty returns a string property. The BSTR of the VARIANT has to be freed with Clear.
+func taskStringProperty(object *ole.IDispatch, name string) string {
+	v, err := oleutil.GetProperty(object, name)
 	if err != nil {
 		return ""
 	}
+	defer v.Clear()
 	return v.ToString()
 }
 
@@ -179,6 +185,7 @@ func taskTimeProperty(task *ole.IDispatch, name string) int64 {
 	if err != nil {
 		return 0
 	}
+	defer v.Clear()
 	t, ok := v.Value().(time.Time)
 	// Tasks which did not run yet return 1999-11-30 or 1899-12-30
 	if !ok || t.Year() < 2000 {

@@ -120,6 +120,9 @@ type ipmiReader struct {
 	selErase     time.Time
 	selLastID    uint16
 	selPopulated bool
+	// The SEL was read successfully once. Entries without timestamp of the first read are old,
+	// entries without timestamp which appear later (e.g. after the SEL was cleared) are new.
+	selInitialized bool
 }
 
 func newIpmiReader(selWindow time.Duration) *ipmiReader {
@@ -427,7 +430,7 @@ func (r *ipmiReader) readSel(ctx context.Context, c *client.Client) (*resultIpmi
 	} else if !r.selPopulated || !info.RecentEraseTime.Equal(r.selErase) || len(r.sel) > int(info.Entries) {
 		// First read or the SEL was cleared: read all entries
 		r.resetSel()
-		if err := r.readSelEntries(ctx, c, 0, !r.selPopulated); err != nil {
+		if err := r.readSelEntries(ctx, c, 0, !r.selInitialized); err != nil {
 			r.resetSel()
 			return nil, err
 		}
@@ -441,6 +444,7 @@ func (r *ipmiReader) readSel(ctx context.Context, c *client.Client) (*resultIpmi
 	r.selAddition = info.RecentAdditionTime
 	r.selErase = info.RecentEraseTime
 	r.selPopulated = true
+	r.selInitialized = true
 
 	result.Events = r.selEventsInWindow(time.Now())
 	return result, nil

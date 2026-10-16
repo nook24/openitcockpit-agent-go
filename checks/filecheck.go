@@ -146,11 +146,24 @@ func checkDirectory(ctx context.Context, d *config.FileDefinition) (*resultFileC
 	}
 	res.Exists = true
 
+	// WalkDir does not follow a root which is a symlink (e.g. /var/backups -> /data/backups),
+	// so the resolved path is walked and the reported paths start with the configured path
+	base := filepath.Clean(d.Path)
+	root := base
+	if resolved, err := filepath.EvalSymlinks(base); err == nil {
+		root = resolved
+	}
+
 	now := fileCheckNow()
 	errStop := errors.New("stop")
-	err = filepath.WalkDir(d.Path, func(path string, entry fs.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if root != base {
+			if rel, relErr := filepath.Rel(root, path); relErr == nil {
+				path = filepath.Join(base, rel)
+			}
+		}
 		if err != nil {
-			if path == d.Path {
+			if path == base {
 				return err
 			}
 			// e.g. permission denied for a sub directory
@@ -158,7 +171,7 @@ func checkDirectory(ctx context.Context, d *config.FileDefinition) (*resultFileC
 			return nil
 		}
 		if entry.IsDir() {
-			if path != d.Path && !d.Recursive {
+			if path != base && !d.Recursive {
 				return filepath.SkipDir
 			}
 			return nil

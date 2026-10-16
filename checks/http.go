@@ -69,6 +69,14 @@ func (c *CheckHTTP) Run(ctx context.Context) (interface{}, error) {
 			defer wg.Done()
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
+			defer func() {
+				if r := recover(); r != nil {
+					err := recoveredPanic("HTTP "+d.Name, r)
+					mutex.Lock()
+					result[d.Name] = map[string]string{"error": err.Error()}
+					mutex.Unlock()
+				}
+			}()
 
 			res := checkHTTPEndpoint(ctx, d)
 			mutex.Lock()

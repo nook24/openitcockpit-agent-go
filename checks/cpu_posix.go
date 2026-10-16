@@ -144,6 +144,15 @@ func selectCpuBaseSample(samples []*cpuSample, now time.Time, window time.Durati
 }
 
 func (s *cpuSampler) run() {
+	defer func() {
+		if r := recover(); r != nil {
+			_ = recoveredPanic("CPU sampler", r)
+			s.mutex.Lock()
+			// The next check run starts the sampler again
+			s.running = false
+			s.mutex.Unlock()
+		}
+	}()
 	for {
 		stats, err := cpu.Times(true)
 		now := time.Now()

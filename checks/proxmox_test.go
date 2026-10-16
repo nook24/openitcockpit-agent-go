@@ -227,7 +227,17 @@ esac
 	if err := os.WriteFile(pvesh, []byte("#!/bin/sh\necho 'ipcc_send_rec[1] failed: Connection refused' >&2\nexit 111\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := (&CheckProxmox{pvesh: pvesh}).Run(context.Background()); err == nil || !strings.Contains(err.Error(), "Connection refused") {
-		t.Errorf("expected an error if pve-cluster is not running: %v", err)
+	calls := filepath.Join(dir, "calls")
+	if err := os.WriteFile(pvesh, []byte("#!/bin/sh\necho call >> "+calls+"\necho 'ipcc_send_rec[1] failed: Connection refused' >&2\nexit 111\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	// The following runs return the error of the background collector without calling pvesh again
+	for i := 0; i < 3; i++ {
+		if _, err := (&CheckProxmox{pvesh: pvesh}).Run(context.Background()); err == nil || !strings.Contains(err.Error(), "Connection refused") {
+			t.Errorf("expected an error if pve-cluster is not running: %v", err)
+		}
+	}
+	if data, _ := os.ReadFile(calls); strings.Count(string(data), "call") != 1 {
+		t.Errorf("expected one synchronous pvesh call, got %d", strings.Count(string(data), "call"))
 	}
 }

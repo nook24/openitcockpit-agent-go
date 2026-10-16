@@ -38,7 +38,18 @@ func (s *fileLogSource) read(ctx context.Context) ([]*logEntry, []string, error)
 		return nil, nil, fmt.Errorf("invalid path %s: %s", s.pattern, err)
 	}
 	if len(paths) == 0 {
+		// A file which gets created later is new, so it is read from the beginning
+		s.initialized = true
 		return nil, nil, fmt.Errorf("no file matches %s", s.pattern)
+	}
+
+	// The cursors of the previous run, to recognize files which got renamed to another path of the glob,
+	// e.g. syslog => syslog.1 for /var/log/syslog* or app.log => app-20261016.log for /var/log/app/*.log
+	previous := make([]*fileCursor, 0, len(s.files))
+	for _, cursor := range s.files {
+		if cursor.info != nil {
+			previous = append(previous, &fileCursor{info: cursor.info, offset: cursor.offset})
+		}
 	}
 
 	var entries []*logEntry
@@ -51,7 +62,7 @@ func (s *fileLogSource) read(ctx context.Context) ([]*logEntry, []string, error)
 		}
 		seen[path] = true
 
-		fileEntries, warning, err := s.readFile(path)
+		fileEntries, warning, err := s.readFile(path, previous)
 		if err != nil {
 			if _, ok := s.files[path]; !ok && !s.initialized {
 				// Remember the file, so we start at its end once it becomes readable
@@ -81,7 +92,7 @@ func (s *fileLogSource) read(ctx context.Context) ([]*logEntry, []string, error)
 	return entries, warnings, nil
 }
 
-func (s *fileLogSource) readFile(path string) ([]*logEntry, string, error) {
+func (s *fileLogSource) readFile(path string, previous []*fileCursor) ([]*logEntry, string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, "", err
@@ -98,6 +109,15 @@ func (s *fileLogSource) readFile(path string) ([]*logEntry, string, error) {
 	}
 
 	cursor, ok := s.files[path]
+	if !ok || cursor.info == nil || !os.SameFile(cursor.info, info) {
+		// The file was known under another path (renamed), so only the lines after its last offset are new
+		for _, known := range previous {
+			if os.SameFile(known.info, info) {
+				cursor, ok = &fileCursor{info: known.info, offset: known.offset}, true
+				break
+			}
+		}
+	}
 	switch {
 	case !ok && !s.initialized, ok && cursor.info == nil:
 		// First run after the agent started (or the file was not readable so far):

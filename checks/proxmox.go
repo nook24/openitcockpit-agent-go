@@ -177,9 +177,10 @@ func (c *CheckProxmox) Run(ctx context.Context) (interface{}, error) {
 	state.pvesh = pvesh
 	state.lastAccess = time.Now()
 
-	// The first run collects the core data synchronously, all following runs return the data of the background collector.
+	// The first run collects the core data synchronously, all following runs return the data of the background collector
+	// (also if the first collection failed, the background collector tries again).
 	// Backups and replication are collected by the background collector right after the first run
-	if state.core == nil {
+	if state.core == nil && state.coreTime.IsZero() {
 		state.mutex.Unlock()
 		core, guests, localNode, err := collectProxmoxCore(ctx, pvesh)
 		state.mutex.Lock()
@@ -215,6 +216,18 @@ func (s *proxmoxCollector) storeCore(core map[string]interface{}, guests []*resu
 
 // collect runs in the background and refreshes the data
 func (s *proxmoxCollector) collect(generation int) {
+	defer func() {
+		if r := recover(); r != nil {
+			err := recoveredPanic("Proxmox", r)
+			s.mutex.Lock()
+			if s.generation == generation {
+				// The next check run starts the collector again
+				s.running = false
+				s.coreErr = err
+			}
+			s.mutex.Unlock()
+		}
+	}()
 	for first := true; ; first = false {
 		if !first {
 			time.Sleep(15 * time.Second)

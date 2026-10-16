@@ -125,3 +125,33 @@ func TestCheckDirectory(t *testing.T) {
 		t.Errorf("expected not a directory error: %+v", r)
 	}
 }
+
+func TestCheckDirectorySymlink(t *testing.T) {
+	now := time.Unix(1700000000, 0)
+	fileCheckNow = func() time.Time { return now }
+	defer func() { fileCheckNow = time.Now }()
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "data", "backups")
+	writeTestFile(t, filepath.Join(target, "a.tar.gz"), 10, now.Add(-3*time.Hour))
+	writeTestFile(t, filepath.Join(target, "b.tar.gz"), 20, now.Add(-1*time.Hour))
+	link := filepath.Join(dir, "backups")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks are not supported: %s", err)
+	}
+
+	// The root of the walk is a symlink, the paths start with the configured path
+	res := runFileCheckOK(t, &config.FileDefinition{Type: config.FileTypeDirectory, Path: link})
+	if !res.Exists || res.FileCount != 2 || res.TotalSize != 30 {
+		t.Fatalf("unexpected result: %+v", res)
+	}
+	if res.Newest.Path != filepath.Join(link, "b.tar.gz") {
+		t.Errorf("unexpected path of the newest file: %s", res.Newest.Path)
+	}
+
+	// A trailing separator does not hide the files of a non recursive check
+	res = runFileCheckOK(t, &config.FileDefinition{Type: config.FileTypeDirectory, Path: target + string(filepath.Separator)})
+	if res.FileCount != 2 {
+		t.Errorf("unexpected result with trailing separator: %+v", res)
+	}
+}

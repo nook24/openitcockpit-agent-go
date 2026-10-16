@@ -124,6 +124,37 @@ func TestLogfileFileSourceNoFile(t *testing.T) {
 	}
 }
 
+func TestLogfileFileSourceCreatedLater(t *testing.T) {
+	// No file matches on the first run, so the lines of a file which gets created later are new
+	dir := t.TempDir()
+	s := newFileLogSource(filepath.Join(dir, "error.log"), 1024*1024)
+	if _, _, err := s.read(context.Background()); err == nil {
+		t.Fatal("expected an error for the missing file")
+	}
+	appendToFile(t, filepath.Join(dir, "error.log"), "first error\n")
+	expectLines(t, readLines(t, s), "first error")
+}
+
+func TestLogfileFileSourceRenamedWithinGlob(t *testing.T) {
+	// logrotate renames syslog to syslog.1, which matches the glob as well: its old lines must not be read again
+	dir := t.TempDir()
+	appendToFile(t, filepath.Join(dir, "syslog"), "old line\n")
+	s := newFileLogSource(filepath.Join(dir, "syslog*"), 1024*1024)
+	expectLines(t, readLines(t, s))
+
+	appendToFile(t, filepath.Join(dir, "syslog"), "before rotation\n")
+	expectLines(t, readLines(t, s), "before rotation")
+
+	if err := os.Rename(filepath.Join(dir, "syslog"), filepath.Join(dir, "syslog.1")); err != nil {
+		t.Fatal(err)
+	}
+	// A line which was written to the old file after the last read, and the new file
+	appendToFile(t, filepath.Join(dir, "syslog.1"), "late line\n")
+	appendToFile(t, filepath.Join(dir, "syslog"), "after rotation\n")
+	expectLines(t, readLines(t, s), "after rotation", "late line")
+	expectLines(t, readLines(t, s))
+}
+
 func TestLogfileFileSourceMaxReadBytes(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.log")
 	appendToFile(t, path, "")

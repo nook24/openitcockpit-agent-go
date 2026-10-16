@@ -162,7 +162,9 @@ func (r *redfishCollector) collect() {
 		}
 	}()
 
-	result, err := collectRedfish(ctx, r.client, r.def, time.Now())
+	result, err := protect("Redfish "+r.def.Name, func() (*resultRedfish, error) {
+		return collectRedfish(ctx, r.client, r.def, time.Now())
+	})
 
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
