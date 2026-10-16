@@ -2,6 +2,12 @@ package checks
 
 import (
 	"context"
+	"encoding/json"
+	"math"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -185,6 +191,12 @@ func TestIpmiDiscreteUndefinedBits(t *testing.T) {
 
 // Recordings of two Supermicro H11DSi-NT (AMD EPYC) with partially populated DIMM slots and fans
 func TestIpmiReplaySupermicro(t *testing.T) {
+	// ipmitool reports the firmware 1.52
+	reader := newIpmiReader(time.Hour)
+	if result := collectIpmiReplay(t, reader, "supermicro-h11dsi-a.json"); result.Device.FirmwareRevision != "1.52" {
+		t.Errorf("unexpected firmware revision %s", result.Device.FirmwareRevision)
+	}
+
 	for name, events := range map[string]int{"supermicro-h11dsi-a.json": 3, "supermicro-h11dsi-b.json": 2} {
 		t.Run(name, func(t *testing.T) {
 			// A large window, so the entries of the recordings (2024 - 2026) stay within the window
@@ -240,5 +252,133 @@ func TestIpmiReplaySupermicro(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Recordings which must not be published (e.g. dumps of other companies) are tested with rules instead of expected values:
+// OITC_IPMI_PRIVATE_DUMPS=/path/to/dumps go test ./checks -run IpmiReplayPrivate
+func TestIpmiReplayPrivateDumps(t *testing.T) {
+	dir := os.Getenv("OITC_IPMI_PRIVATE_DUMPS")
+	if dir == "" {
+		t.Skip("OITC_IPMI_PRIVATE_DUMPS is not set")
+	}
+	files, err := filepath.Glob(filepath.Join(dir, "*.json"))
+	if err != nil || len(files) == 0 {
+		t.Skipf("no dumps found in %s", dir)
+	}
+
+	for _, file := range files {
+		t.Run(filepath.Base(file), func(t *testing.T) {
+			data, err := os.ReadFile(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var dump struct {
+				Recorded struct {
+					Sensors []struct {
+						Number      string `json:"number"`
+						Reading     string `json:"reading"`
+						Threshold   bool   `json:"threshold"`
+						GeneratorID string `json:"generator_id"`
+					} `json:"sensors"`
+				} `json:"recorded"`
+			}
+			if err := json.Unmarshal(data, &dump); err != nil {
+				t.Fatal(err)
+			}
+
+			reader := newIpmiReader(50 * 365 * 24 * time.Hour)
+			result := collectIpmiReplay(t, reader, file)
+			if len(result.Errors) != 0 || len(result.Sensors) == 0 {
+				t.Fatalf("errors: %v, %d sensors", result.Errors, len(result.Sensors))
+			}
+
+			states := map[string]int{}
+			readings := map[uint8]float64{}
+			for _, sensor := range result.Sensors {
+				states[sensor.State]++
+				if ipmiStateOrder[sensor.State] == 0 && sensor.State != "na" || sensor.State == "unknown" {
+					t.Errorf("sensor %s: invalid state %s %s", sensor.Name, sensor.State, sensor.Error)
+				}
+				// Sensors of the system software (e.g. the BIOS) can not be read
+				if sensor.Owner&0x01 == 0x01 && sensor.State != "na" {
+					t.Errorf("sensor %s of the system software %#02x has a state: %s", sensor.Name, sensor.Owner, sensor.State)
+				}
+				if sensor.Reading != nil {
+					if sensor.Unit == "" {
+						t.Errorf("sensor %s: reading without unit", sensor.Name)
+					}
+					if sensor.Owner == 0x20 {
+						readings[sensor.Number] = *sensor.Reading
+					}
+				}
+			}
+
+			// The readings of the BMC sensors match the readings of go-ipmi in the dump. go-ipmi reads every sensor twice,
+			// the replay answers with the first reading, so the values can differ slightly (e.g. one step of a fan).
+			// Wrong conversion factors differ by orders of magnitude.
+			for _, recorded := range dump.Recorded.Sensors {
+				if recorded.GeneratorID != "0x0020" || !recorded.Threshold || recorded.Reading == "N/A" {
+					continue
+				}
+				number, _ := strconv.ParseUint(strings.TrimPrefix(recorded.Number, "0x"), 16, 8)
+				expected, _ := strconv.ParseFloat(recorded.Reading, 64)
+				if actual, ok := readings[uint8(number)]; !ok || math.Abs(actual-expected) > math.Max(0.001, math.Abs(expected)*0.05) {
+					t.Errorf("sensor %s: expected reading %v, got %v (%t)", recorded.Number, expected, actual, ok)
+				}
+			}
+
+			if result.Sel == nil {
+				t.Fatal("sel missing")
+			}
+			for _, event := range result.Sel.Events {
+				if !event.Asserted || (event.Severity != "Warning" && event.Severity != "Critical") {
+					t.Errorf("unexpected event: %+v", event)
+				}
+			}
+			t.Logf("%d sensors %v, %d sel entries, %d events", len(result.Sensors), states, result.Sel.Entries, len(result.Sel.Events))
+		})
+	}
+}
+
+func TestIpmiSoftwareOwnedSensor(t *testing.T) {
+	// Sensors of the system software (e.g. the BIOS with software id 0x58, owner 0xb1) are skipped without a command
+	sdr := &types.SDR{
+		RecordHeader: &types.SDRHeader{RecordType: types.SDRRecordTypeCompactSensor},
+		Compact: &types.SDRCompact{
+			GeneratorID:            types.GeneratorID(0x00b1),
+			SensorNumber:           0x01,
+			SensorType:             types.SensorTypeMemory,
+			SensorEventReadingType: types.EventReadingTypeSensorSpecific,
+			IDStringBytes:          []byte("ECC Corr Err"),
+		},
+	}
+	result := readIpmiSensor(context.Background(), nil, sdr)
+	if result.State != "na" || result.Owner != 0xb1 || result.Name != "ECC Corr Err" {
+		t.Errorf("unexpected result: %+v", result)
+	}
+}
+
+func TestIpmiAbsentStates(t *testing.T) {
+	// Entity Absent (e.g. the empty second CPU socket of a Dell server) and Device Absent are not a problem
+	for _, test := range []struct {
+		readingType types.EventReadingType
+		sensorType  types.SensorType
+		state       string
+	}{
+		{types.EventReadingTypeSensorSpecific, types.SensorTypeEntityPresence, "Entity Absent"},
+		{types.EventReadingTypeDevicePresent, types.SensorTypePowerSupply, "Device Removed / Device Absent"},
+	} {
+		sensor := &types.Sensor{EventReadingType: test.readingType, SensorType: test.sensorType}
+		if test.readingType == types.EventReadingTypeDevicePresent {
+			sensor.Discrete.ActiveStates.State_0 = true
+		} else {
+			sensor.Discrete.ActiveStates.State_1 = true
+		}
+		result := &resultIpmiSensor{}
+		readIpmiDiscreteSensor(sensor, result)
+		if result.State != "ok" || len(result.States) != 1 || result.States[0] != test.state {
+			t.Errorf("unexpected result: %+v", result)
+		}
 	}
 }

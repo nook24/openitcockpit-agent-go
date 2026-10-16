@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -214,14 +215,18 @@ func ipmiReplay(path string, args []string) int {
 	return 0
 }
 
-// newIpmiReplayClient returns a client which replays the given recording of testdata/ipmi
+// newIpmiReplayClient returns a client which replays the given recording of testdata/ipmi or an absolute path
 func newIpmiReplayClient(t *testing.T, name string) *client.Client {
 	t.Helper()
-	path, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
+	path := name
+	if !filepath.IsAbs(name) {
+		dir, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		path = filepath.Join(dir, "testdata", "ipmi", name)
 	}
-	t.Setenv(ipmiReplayEnv, path+"/testdata/ipmi/"+name)
+	t.Setenv(ipmiReplayEnv, path)
 	executable, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)

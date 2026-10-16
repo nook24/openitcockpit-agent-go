@@ -135,10 +135,11 @@ func (r *ipmiReader) collect(ctx context.Context, c *client.Client) (*resultIpmi
 		return nil, fmt.Errorf("get device id: %w", err)
 	}
 	result.Device = &resultIpmiDevice{
-		ManufacturerID:   deviceID.ManufacturerID,
-		Manufacturer:     types.OEM(deviceID.ManufacturerID).String(),
-		ProductID:        deviceID.ProductID,
-		FirmwareRevision: fmt.Sprintf("%d.%02x", deviceID.MajorFirmwareRevision, deviceID.MinorFirmwareRevision),
+		ManufacturerID: deviceID.ManufacturerID,
+		Manufacturer:   types.OEM(deviceID.ManufacturerID).String(),
+		ProductID:      deviceID.ProductID,
+		// go-ipmi decodes the BCD minor revision, e.g. 0x52 => 52 (firmware 1.52)
+		FirmwareRevision: fmt.Sprintf("%d.%02d", deviceID.MajorFirmwareRevision, deviceID.MinorFirmwareRevision),
 		IPMIVersion:      fmt.Sprintf("%d.%d", deviceID.MajorIPMIVersion, deviceID.MinorIPMIVersion),
 	}
 
@@ -254,6 +255,12 @@ func readIpmiSensor(ctx context.Context, c *client.Client, sdr *types.SDR) *resu
 		State:  "na",
 	}
 
+	// Sensors owned by system software (e.g. the BIOS of Dell servers) can not be read,
+	// their records are only used to describe the events of the SEL
+	if sensor.GeneratorID.OwnerIsSystemSoftware() {
+		return result
+	}
+
 	// Sensors of other controllers (e.g. the management engine) are read through the BMC
 	ctx = client.WithCommandContext(ctx, (&client.CommandContext{}).
 		WithResponderAddr(sensor.GeneratorID.OwnerID()).
@@ -261,8 +268,8 @@ func readIpmiSensor(ctx context.Context, c *client.Client, sdr *types.SDR) *resu
 
 	reading, err := c.GetSensorReading(ctx, sensor.Number)
 	if err != nil {
-		if ipmiIsUnsupported(err) {
-			// The sensor is not present, e.g. an empty DIMM slot
+		if ipmiIsUnsupported(err) || ipmiIsCompletionCode(err, types.CodeDestinationUnavailable) {
+			// The sensor is not present (e.g. an empty DIMM slot) or its controller is not available
 			return result
 		}
 		result.State = "unknown"
@@ -339,6 +346,22 @@ func readIpmiThresholdSensor(ctx context.Context, c *client.Client, sdr *types.S
 	result.Thresholds = t
 }
 
+func ipmiIsCompletionCode(err error, code types.CompletionCode) bool {
+	var respErr *types.ResponseError
+	return errors.As(err, &respErr) && respErr.CompletionCode() == code
+}
+
+// ipmiAbsentState returns true for the states of a missing entity. go-ipmi rates them as critical,
+// but they are reported for empty slots, e.g. the second CPU socket of a Dell server.
+func ipmiAbsentState(eventReadingType types.EventReadingType, sensorType types.SensorType, offset uint8) bool {
+	if sensorType == types.SensorTypeEntityPresence && offset == 1 {
+		// Entity Absent
+		return true
+	}
+	// Device Removed / Device Absent
+	return eventReadingType == types.EventReadingTypeDevicePresent && offset == 0
+}
+
 // readIpmiDiscreteSensor evaluates the active states of a discrete sensor with the severities of the IPMI specification
 func readIpmiDiscreteSensor(sensor *types.Sensor, result *resultIpmiSensor) {
 	result.State = "ok"
@@ -350,6 +373,9 @@ func readIpmiDiscreteSensor(sensor *types.Sensor, result *resultIpmiSensor) {
 			continue
 		}
 		result.States = append(result.States, event.EventName)
+		if ipmiAbsentState(sensor.EventReadingType, sensor.SensorType, offset) {
+			continue
+		}
 		severity := ipmiSeverityState(sensor.EventReadingType.EventSeverity(sensor.SensorType, types.EventData{EventData1: offset}, false))
 		result.State = worseIpmiState(result.State, severity)
 	}
