@@ -157,11 +157,28 @@ func (w *handler) setPackageManagerState(newState packagemanager.PackageInfo) {
 	}
 }
 
-func (w *handler) handleStatus(response http.ResponseWriter, _ *http.Request) {
+// Responses smaller than this are not compressed
+const gzipMinSize = 1024
+
+// writeJSON writes a JSON response, gzip compressed if the client accepts it (Accept-Encoding: gzip).
+// Clients without the header (e.g. older versions of the receiver or curl without --compressed) get the uncompressed data.
+// The configuration (/config) is never compressed, as it contains passwords.
+func writeJSON(response http.ResponseWriter, request *http.Request, data []byte) error {
 	response.Header().Add("Content-Type", "application/json")
+	response.Header().Add("Vary", "Accept-Encoding")
+	if len(data) >= gzipMinSize && utils.AcceptsGzip(request.Header) {
+		if compressed, err := utils.Gzip(data); err == nil {
+			response.Header().Set("Content-Encoding", "gzip")
+			data = compressed
+		}
+	}
 	response.WriteHeader(http.StatusOK)
-	_, err := response.Write(w.getState())
-	if err != nil {
+	_, err := response.Write(data)
+	return err
+}
+
+func (w *handler) handleStatus(response http.ResponseWriter, request *http.Request) {
+	if err := writeJSON(response, request, w.getState()); err != nil {
 		log.Errorln("Webserver: ", err)
 	}
 }
@@ -213,10 +230,7 @@ func (w *handler) handlePrometheusExporterStatus(response http.ResponseWriter, r
 	response.Write([]byte("Unknown exporter"))
 }
 
-func (w *handler) handlePackageManagerStatus(response http.ResponseWriter, _ *http.Request) {
-	response.Header().Add("Content-Type", "application/json")
-	response.WriteHeader(http.StatusOK)
-
+func (w *handler) handlePackageManagerStatus(response http.ResponseWriter, request *http.Request) {
 	pkgInfo := w.getPackageManagerState()
 
 	data, err := json.Marshal(&pkgInfo)
@@ -226,7 +240,7 @@ func (w *handler) handlePackageManagerStatus(response http.ResponseWriter, _ *ht
 		return
 	}
 
-	if _, err := response.Write(data); err != nil {
+	if err := writeJSON(response, request, data); err != nil {
 		log.Errorln("Webserver Packagemanager: ", err)
 	}
 }
