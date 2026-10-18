@@ -107,3 +107,38 @@ func TestCheckCpuUsesBackgroundSamples(t *testing.T) {
 		t.Errorf("unexpected result: %+v", r)
 	}
 }
+
+func TestCpuSamplerClose(t *testing.T) {
+	sampler := &cpuSampler{}
+	sampler.base(time.Now(), time.Minute, 1)
+	sampler.mutex.Lock()
+	stop := sampler.stop
+	running := sampler.running
+	sampler.mutex.Unlock()
+	if !running || stop == nil {
+		t.Fatal("the sampler was not started")
+	}
+
+	sampler.close()
+	select {
+	case <-stop:
+	default:
+		t.Fatal("the stop channel was not closed")
+	}
+	sampler.mutex.Lock()
+	if sampler.running || sampler.samples != nil {
+		t.Error("the sampler is still running")
+	}
+	sampler.mutex.Unlock()
+
+	// The next check run starts a new sampler
+	sampler.base(time.Now(), time.Minute, 1)
+	sampler.mutex.Lock()
+	restarted := sampler.running && sampler.stop != stop
+	sampler.mutex.Unlock()
+	if !restarted {
+		t.Error("the sampler was not started again")
+	}
+	sampler.close()
+	sampler.close()
+}

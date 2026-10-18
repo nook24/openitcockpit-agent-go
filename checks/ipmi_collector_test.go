@@ -38,9 +38,23 @@ func TestCheckIpmiWithoutConfigure(t *testing.T) {
 		t.Errorf("unexpected interval %s and window %s", check.interval, check.selWindow)
 	}
 	ipmiState.Lock()
+	collector := ipmiState.collector
+	ipmiState.Unlock()
+	if collector == nil {
+		t.Fatal("no collector started")
+	}
+
+	// Close stops the collector
+	check.Close()
+	select {
+	case <-collector.stop:
+	default:
+		t.Error("the collector was not stopped")
+	}
+	ipmiState.Lock()
 	if ipmiState.collector != nil {
-		ipmiState.collector.close()
-		ipmiState.collector = nil
+		t.Error("the collector was not removed")
 	}
 	ipmiState.Unlock()
+	check.Close()
 }

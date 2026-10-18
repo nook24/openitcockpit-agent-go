@@ -98,6 +98,16 @@ func (c *CheckIpmi) Run(_ context.Context) (interface{}, error) {
 	return ipmiState.collector.snapshot(), nil
 }
 
+// Close stops the background collector
+func (c *CheckIpmi) Close() {
+	ipmiState.Lock()
+	defer ipmiState.Unlock()
+	if ipmiState.collector != nil {
+		ipmiState.collector.close()
+		ipmiState.collector = nil
+	}
+}
+
 // Configure the command or return false if the command was disabled
 func (c *CheckIpmi) Configure(cfg *config.Configuration) (bool, error) {
 	if !cfg.Ipmi || !ipmiAvailable() {

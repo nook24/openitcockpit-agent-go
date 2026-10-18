@@ -15,6 +15,8 @@ import (
 const (
 	// A collector stops if the check was not executed for this time (e.g. disabled by a reload)
 	redfishIdleTimeout = 10 * time.Minute
+	// Close waits this time for the logout of the collectors
+	redfishCloseTimeout = 15 * time.Second
 )
 
 // CheckRedfish monitors the hardware of servers with the Redfish API of their BMCs (redfish.ini).
@@ -39,6 +41,7 @@ type redfishCollector struct {
 	lastAccess time.Time
 	stop       chan struct{}
 	stopOnce   sync.Once
+	done       chan struct{} // Closed when the collector ended and logged out
 }
 
 var redfishCollectors = struct {
@@ -72,6 +75,7 @@ func (c *CheckRedfish) Run(_ context.Context) (interface{}, error) {
 				client:     newRedfishClient(definition),
 				lastAccess: time.Now(),
 				stop:       make(chan struct{}),
+				done:       make(chan struct{}),
 			}
 			redfishCollectors.collectors[key] = collector
 			go collector.run()
@@ -87,6 +91,30 @@ func (c *CheckRedfish) Run(_ context.Context) (interface{}, error) {
 		}
 	}
 	return result, nil
+}
+
+// Close stops all collectors and waits until they logged out from their BMCs,
+// as BMCs only allow a few sessions at the same time
+func (c *CheckRedfish) Close() {
+	redfishCollectors.Lock()
+	collectors := make([]*redfishCollector, 0, len(redfishCollectors.collectors))
+	for key, collector := range redfishCollectors.collectors {
+		collector.close()
+		collectors = append(collectors, collector)
+		delete(redfishCollectors.collectors, key)
+	}
+	redfishCollectors.Unlock()
+
+	timeout := time.NewTimer(redfishCloseTimeout)
+	defer timeout.Stop()
+	for _, collector := range collectors {
+		select {
+		case <-collector.done:
+		case <-timeout.C:
+			log.Warningln("Redfish: the collectors did not stop within ", redfishCloseTimeout)
+			return
+		}
+	}
 }
 
 // Configure the command or return false if the command was disabled
@@ -123,6 +151,7 @@ func (r *redfishCollector) snapshot() interface{} {
 }
 
 func (r *redfishCollector) run() {
+	defer close(r.done)
 	defer r.client.logout()
 	for {
 		r.collect()

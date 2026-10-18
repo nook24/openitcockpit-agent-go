@@ -69,10 +69,26 @@ type cpuSampler struct {
 	samples    []*cpuSample // Oldest first
 	window     time.Duration
 	running    bool
+	stop       chan struct{} // Closed by Close, every sampler goroutine has its own channel
 	lastAccess time.Time
 }
 
 var cpuSamplerState = &cpuSampler{}
+
+// Close stops the background sampler
+func (c *CheckCpu) Close() {
+	cpuSamplerState.close()
+}
+
+func (s *cpuSampler) close() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.running {
+		close(s.stop)
+		s.running = false
+	}
+	s.samples = nil
+}
 
 // Run the actual check
 // if error != nil the check result will be nil
@@ -119,7 +135,8 @@ func (s *cpuSampler) base(now time.Time, window time.Duration, cores int) []cpu.
 	s.lastAccess = now
 	if !s.running {
 		s.running = true
-		go s.run()
+		s.stop = make(chan struct{})
+		go s.run(s.stop)
 	}
 	return selectCpuBaseSample(s.samples, now, window, cores)
 }
@@ -143,13 +160,15 @@ func selectCpuBaseSample(samples []*cpuSample, now time.Time, window time.Durati
 	return base.stats
 }
 
-func (s *cpuSampler) run() {
+func (s *cpuSampler) run(stop chan struct{}) {
 	defer func() {
 		if r := recover(); r != nil {
 			_ = recoveredPanic("CPU sampler", r)
 			s.mutex.Lock()
 			// The next check run starts the sampler again
-			s.running = false
+			if s.stop == stop {
+				s.running = false
+			}
 			s.mutex.Unlock()
 		}
 	}()
@@ -158,6 +177,13 @@ func (s *cpuSampler) run() {
 		now := time.Now()
 
 		s.mutex.Lock()
+		select {
+		case <-stop:
+			// Closed, a new sampler may already run
+			s.mutex.Unlock()
+			return
+		default:
+		}
 		if now.Sub(s.lastAccess) > cpuSamplerIdleTimeout {
 			// The check is not executed anymore
 			s.running = false
@@ -181,7 +207,11 @@ func (s *cpuSampler) run() {
 		}
 		s.mutex.Unlock()
 
-		time.Sleep(cpuSampleInterval)
+		select {
+		case <-stop:
+			return
+		case <-time.After(cpuSampleInterval):
+		}
 	}
 }
 

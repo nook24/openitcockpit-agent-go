@@ -575,13 +575,22 @@ func TestCheckRedfishCollectors(t *testing.T) {
 
 	redfishCollectors.Lock()
 	count := len(redfishCollectors.collectors)
-	for key, collector := range redfishCollectors.collectors {
-		collector.close()
-		delete(redfishCollectors.collectors, key)
-	}
 	redfishCollectors.Unlock()
 	if count != 1 {
 		t.Errorf("expected a single collector, got %d", count)
+	}
+
+	// Close stops the collectors and waits for the logout of their sessions
+	_, logoutsBefore, _ := bmc.stats()
+	check.Close()
+	if _, logouts, _ := bmc.stats(); logouts != logoutsBefore+1 {
+		t.Errorf("expected the session to be deleted by Close, got %d logouts (before %d)", logouts, logoutsBefore)
+	}
+	redfishCollectors.Lock()
+	count = len(redfishCollectors.collectors)
+	redfishCollectors.Unlock()
+	if count != 0 {
+		t.Errorf("expected no collector after Close, got %d", count)
 	}
 }
 

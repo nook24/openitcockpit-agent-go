@@ -222,6 +222,15 @@ esac
 		t.Errorf("expected the collected data: %v %v", r, err)
 	}
 
+	// Close stops the background collector and discards the data
+	(&CheckProxmox{}).Close()
+	proxmoxState.mutex.Lock()
+	closed := !proxmoxState.running && proxmoxState.core == nil && proxmoxState.coreTime.IsZero()
+	proxmoxState.mutex.Unlock()
+	if !closed {
+		t.Error("the collector was not closed")
+	}
+
 	// Cluster status not available: the whole check fails
 	resetProxmoxCollector()
 	if err := os.WriteFile(pvesh, []byte("#!/bin/sh\necho 'ipcc_send_rec[1] failed: Connection refused' >&2\nexit 111\n"), 0700); err != nil {

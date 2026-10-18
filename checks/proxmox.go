@@ -47,6 +47,12 @@ type proxmoxCollector struct {
 var proxmoxState = &proxmoxCollector{}
 
 // resetProxmoxCollector discards all collected data and stops the background goroutine
+// Close stops the background collector
+func (c *CheckProxmox) Close() {
+	resetProxmoxCollector()
+}
+
+// resetProxmoxCollector stops the background collector (it ends after its current collection) and discards the data
 func resetProxmoxCollector() {
 	proxmoxState.mutex.Lock()
 	defer proxmoxState.mutex.Unlock()
