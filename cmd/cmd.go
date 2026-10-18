@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"syscall"
 
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/agentrt"
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/platformpaths"
@@ -111,9 +112,10 @@ func (r *RootCmd) run(cmd *cobra.Command, args []string) {
 	r.agentRt.Start(ctx)
 	defer r.agentRt.Shutdown()
 
-	// Bind linux signal handler
+	// Bind linux signal handler: Ctrl+C (SIGINT) and the stop of the service by systemd, launchd or the init script (SIGTERM).
+	// After the first signal the handler is removed, so a second signal terminates the agent immediately.
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sig)
 
 	select {
