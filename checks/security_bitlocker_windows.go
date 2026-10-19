@@ -3,6 +3,8 @@ package checks
 import (
 	"errors"
 	"sort"
+	"sync"
+	"time"
 
 	"github.com/yusufpapurcu/wmi"
 )
@@ -55,7 +57,29 @@ var bitLockerEncryptionMethod = map[uint32]string{
 	7: "XTS-AES 256",
 }
 
+// The BitLocker state rarely changes, but the WMI query is slow: without admin rights it takes 5 seconds until access
+// is denied, which blocks all other WMI queries of the agent
+const bitLockerCacheDuration = 5 * time.Minute
+
+var bitLockerCache struct {
+	sync.Mutex
+	result  *resultBitLocker
+	err     error
+	expires time.Time
+}
+
 func getBitLocker() (*resultBitLocker, error) {
+	bitLockerCache.Lock()
+	defer bitLockerCache.Unlock()
+	if time.Now().Before(bitLockerCache.expires) {
+		return bitLockerCache.result, bitLockerCache.err
+	}
+	bitLockerCache.result, bitLockerCache.err = queryBitLocker()
+	bitLockerCache.expires = time.Now().Add(bitLockerCacheDuration)
+	return bitLockerCache.result, bitLockerCache.err
+}
+
+func queryBitLocker() (*resultBitLocker, error) {
 	var dst []Win32_EncryptableVolume
 	err := wmi.QueryNamespace("SELECT DriveLetter, ProtectionStatus, ConversionStatus, EncryptionMethod, VolumeType FROM Win32_EncryptableVolume",
 		&dst, `root\CIMV2\Security\MicrosoftVolumeEncryption`)
