@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -164,5 +165,64 @@ func TestCheckRunnerPanicError(t *testing.T) {
 		}
 	case <-time.After(time.Second * 5):
 		t.Fatal("timeout waiting for results")
+	}
+}
+
+// slowCheck ignores the context like a WMI query
+type slowCheck struct {
+	release chan struct{}
+	running atomic.Int32
+	maxRuns atomic.Int32
+}
+
+func (c *slowCheck) Name() string { return "slow" }
+
+func (c *slowCheck) Run(_ context.Context) (interface{}, error) {
+	n := c.running.Add(1)
+	defer c.running.Add(-1)
+	if n > c.maxRuns.Load() {
+		c.maxRuns.Store(n)
+	}
+	<-c.release
+	return "done", nil
+}
+
+func (c *slowCheck) Configure(_ *config.Configuration) (bool, error) { return true, nil }
+
+func TestCheckRunnerSkipsRunWhileChecksAreRunning(t *testing.T) {
+	check := &slowCheck{release: make(chan struct{})}
+	c := &CheckRunner{
+		Configuration: &config.Configuration{CheckInterval: 30},
+		Result:        make(chan map[string]interface{}, 10),
+		Checks:        []checks.Check{check},
+	}
+
+	// The first run times out, but the check keeps running
+	c.runChecks(context.Background(), c.Checks, 50*time.Millisecond)
+	for i := 0; i < 3; i++ {
+		c.runChecks(context.Background(), c.Checks, 50*time.Millisecond)
+	}
+	if max := check.maxRuns.Load(); max != 1 {
+		t.Fatalf("the check ran %d times concurrently", max)
+	}
+
+	close(check.release)
+	deadline := time.Now().Add(5 * time.Second)
+	for c.running.Load() {
+		if time.Now().After(deadline) {
+			t.Fatal("run did not finish")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// The next run is executed again
+	c.runChecks(context.Background(), c.Checks, 5*time.Second)
+	select {
+	case res := <-c.Result:
+		if res["slow"] != "done" {
+			t.Fatalf("unexpected result: %v", res)
+		}
+	default:
+		t.Fatal("no result")
 	}
 }

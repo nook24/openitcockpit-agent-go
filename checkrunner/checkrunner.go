@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/checks"
@@ -19,6 +20,7 @@ type CheckRunner struct {
 	Checks        []checks.Check
 
 	mtx      sync.Mutex
+	running  atomic.Bool // the checks of a run are executed
 	wg       sync.WaitGroup
 	shutdown chan struct{}
 }
@@ -61,6 +63,14 @@ func runCheck(ctx context.Context, check checks.Check) interface{} {
 }
 
 func (c *CheckRunner) runChecks(parent context.Context, checks []checks.Check, timeout time.Duration) {
+	// The checks keep running after the timeout, as most of them can not be canceled (e.g. WMI queries).
+	// A new run would execute the checks concurrently and slow runs would pile up.
+	if !c.running.CompareAndSwap(false, true) {
+		log.Errorln("Checks of the previous run are still running, skipping this run")
+		log.Errorln("Consider increasing check interval or disable unnecessary checks")
+		return
+	}
+
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
@@ -72,6 +82,7 @@ func (c *CheckRunner) runChecks(parent context.Context, checks []checks.Check, t
 
 	results := make(map[string]interface{})
 	go func() {
+		defer c.running.Store(false)
 		// Run checks in a new thread
 		for _, check := range checks {
 			log.Debugln("Begin Check: ", check.Name())
