@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/agentrt"
+	"github.com/openITCOCKPIT/openitcockpit-agent-go/config"
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/platformpaths"
 	"github.com/spf13/cobra"
 )
@@ -126,6 +127,12 @@ func (r *RootCmd) run(cmd *cobra.Command, args []string) {
 	}
 }
 
+// versionString is printed by --version. Only the version number (e.g. 3.6.1), so scripts and tools like Ansible
+// can compare it without parsing
+func versionString() string {
+	return config.AgentVersion + "\n"
+}
+
 func New() *RootCmd {
 	r := &RootCmd{
 		shutdown: make(chan struct{}),
@@ -137,7 +144,10 @@ func New() *RootCmd {
 		Args:    cobra.NoArgs,
 		PreRunE: r.preRun,
 		Run:     r.run,
+		Version: config.AgentVersion,
 	}
+	// --version (-v is already used by --verbose)
+	r.cmd.SetVersionTemplate(versionString())
 	r.cmd.PersistentFlags().StringVarP(&r.configPath, "config", "c", "", "Path to configuration file")
 	r.cmd.PersistentFlags().BoolVarP(&r.verbose, "verbose", "v", false, "Enable info output")
 	r.cmd.PersistentFlags().BoolVarP(&r.debug, "debug", "d", false, "Enable debug output")
