@@ -1,5 +1,9 @@
 pipeline {
     agent any
+    parameters {
+        // Only the main branch gets signed by default, as the number of code signings is limited
+        booleanParam(name: 'SIGN_WINDOWS', defaultValue: false, description: 'Sign the Windows MSI packages also for branches other than main')
+    }
     environment {
         CIBUILD = "1"
         //ADVINST = "\"C:\\Program Files (x86)\\Caphyon\\Advanced Installer\\bin\\x86\\advinst.exe\""
@@ -733,8 +737,8 @@ def package_windows(branch) {
         powershell "& $ADVINST /edit \"build\\msi\\openitcockpit-agent-${GOARCH}.aip\" \\NewPathVariable -name AGENT_SOURCE -value \"C:\\jenkins\\workspace\\openitcockpit-agent-go_${branch}\" -valuetype Folder -global"
         powershell "& $ADVINST /edit \"build\\msi\\openitcockpit-agent-${GOARCH}.aip\" \\SetVersion \"$VERSION\""
 
-        if (env.BRANCH_NAME != 'main') {
-            // Disable code-signing for development builds branches
+        if (env.BRANCH_NAME != 'main' && !params.SIGN_WINDOWS) {
+            // Disable code-signing for development builds branches, unless the build parameter SIGN_WINDOWS is set
             powershell "& $ADVINST /edit \"build\\msi\\openitcockpit-agent-${GOARCH}.aip\" \\ResetSig"
         }
 
