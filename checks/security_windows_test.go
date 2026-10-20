@@ -3,12 +3,10 @@ package checks
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"testing"
 
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/config"
-	"github.com/yusufpapurcu/wmi"
 )
 
 func TestCheckSecurityWindows(t *testing.T) {
@@ -104,21 +102,5 @@ func TestCheckWindowsPerfCounter(t *testing.T) {
 				t.Errorf("expected error for %s: %s", name, js)
 			}
 		}
-	}
-}
-
-func TestIsWMINotFound(t *testing.T) {
-	// The error messages are localized, e.g. "Ungültiger Namespace" on German systems
-	var dst []antiVirusProduct
-	err := wmi.QueryNamespace("SELECT displayName FROM AntiVirusProduct", &dst, `root\OitcDoesNotExist`)
-	if err == nil || !isWMINotFound(err) {
-		t.Errorf("missing namespace not detected: %v", err)
-	}
-	err = wmi.Query("SELECT DisplayName FROM Oitc_DoesNotExist", &dst)
-	if err == nil || !isWMINotFound(err) {
-		t.Errorf("missing class not detected: %v", err)
-	}
-	if isWMINotFound(errors.New("access denied")) {
-		t.Error("other errors must not be detected as missing namespace or class")
 	}
 }

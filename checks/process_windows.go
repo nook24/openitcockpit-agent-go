@@ -66,7 +66,7 @@ func (c *CheckProcess) Run(_ context.Context) (interface{}, error) {
 	}
 
 	if err := wmi.Query("SELECT IDProcess,WorkingSet,WorkingSetPrivate,PrivateBytes,HandleCount,PercentProcessorTime FROM Win32_PerfFormattedData_PerfProc_Process", &processPerf); err != nil {
-		return nil, errors.Wrap(err, "could not query wmi for process perfdata list")
+		return nil, errors.Wrap(wmiPerfClassError(err), "could not query wmi for process perfdata list")
 	}
 
 	processMapPerfdata := make(map[uint64]*Win32_PerfFormattedData_PerfProc_Process, len(processPerf))

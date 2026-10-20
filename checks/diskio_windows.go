@@ -110,7 +110,7 @@ func (c *CheckDiskIo) Run(_ context.Context) (interface{}, error) {
 	var dst []Win32_PerfRawData_PerfDisk_PhysicalDisk
 	err := wmi.Query("SELECT * FROM Win32_PerfRawData_PerfDisk_PhysicalDisk WHERE Name <> '_Total'", &dst)
 	if err != nil {
-		return nil, err
+		return nil, wmiPerfClassError(err)
 	}
 
 	diskResults := make(map[string]*resultDiskIo)
