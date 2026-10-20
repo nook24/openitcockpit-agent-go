@@ -130,7 +130,8 @@ func TestCheckHTTP(t *testing.T) {
 		return res
 	}
 
-	if res := expect("ok", 200, true); res.ContentMatch == nil || !*res.ContentMatch || res.BodySize != 15 || res.ResponseTime <= 0 {
+	// The response time of a local request can be 0 on Windows, as the clock has a resolution of up to 15.6 ms
+	if res := expect("ok", 200, true); res.ContentMatch == nil || !*res.ContentMatch || res.BodySize != 15 || res.ResponseTime < 0 {
 		t.Errorf("unexpected result: %+v", res)
 	}
 	if res := expect("nomatch", 200, true); res.ContentMatch == nil || *res.ContentMatch {
