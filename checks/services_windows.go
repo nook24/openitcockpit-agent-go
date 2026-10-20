@@ -224,25 +224,7 @@ func queryServiceConfig(srvHandle windows.Handle, serviceName *uint16, service *
 	service.DelayedAutoStart = queryServiceDelayedAutoStart(srvHandle)
 	service.TriggerStart = queryServiceTriggerStart(srvHandle)
 
-	serviceConfig = nil
-	buf = nil
-
-	bytesNeeded = 0
-
-	if err := windows.QueryServiceConfig2(srvHandle, windows.SERVICE_CONFIG_DESCRIPTION, nil, 0, &bytesNeeded); err != windows.ERROR_INSUFFICIENT_BUFFER {
-		return errors.Wrap(err, fmt.Sprint("could not fetch required buffer size for windows service description query for service ", windows.UTF16PtrToString(serviceName)))
-	}
-
-	buf = make([]byte, bytesNeeded)
-	var serviceDescription = (*windows.SERVICE_DESCRIPTION)(unsafe.Pointer(&buf[0]))
-	if err := windows.QueryServiceConfig2(srvHandle, windows.SERVICE_CONFIG_DESCRIPTION, &buf[0], bytesNeeded, &bytesNeeded); err != windows.ERROR_INSUFFICIENT_BUFFER {
-		return errors.Wrap(err, fmt.Sprint("could not fetch windows service description for service ", windows.UTF16PtrToString(serviceName)))
-	}
-
-	service.Description = windows.UTF16PtrToString(serviceDescription.Description)
-	serviceDescription = nil
-	buf = nil
-
+	// The description is queried by queryServiceDescription
 	return nil
 }
 
@@ -268,12 +250,28 @@ func queryServiceTriggerStart(srvHandle windows.Handle) bool {
 	return info.TriggersCount > 0
 }
 
+// isMissingServiceDescription returns true if the description of a service can not be loaded, as it is a resource of a
+// missing file, e.g. a missing language file of the per-user services like CDPUserSvc_d59647d or Sense, or a missing DLL
+// like the one of WaaSMedicSvc. Windows shows no description for these services either.
+func isMissingServiceDescription(err error) bool {
+	switch err {
+	case windows.ERROR_MUI_FILE_NOT_FOUND, windows.ERROR_FILE_NOT_FOUND, windows.ERROR_RESOURCE_DATA_NOT_FOUND,
+		windows.ERROR_RESOURCE_TYPE_NOT_FOUND, windows.ERROR_RESOURCE_NAME_NOT_FOUND:
+		return true
+	}
+	return false
+}
+
 func queryServiceDescription(srvHandle windows.Handle, serviceName *uint16, service *resultWindowsServices) error {
 	var (
 		bytesNeeded uint32
 	)
 
 	if err := windows.QueryServiceConfig2(srvHandle, windows.SERVICE_CONFIG_DESCRIPTION, nil, 0, &bytesNeeded); err != windows.ERROR_INSUFFICIENT_BUFFER {
+		if isMissingServiceDescription(err) {
+			service.Description = ""
+			return nil
+		}
 		return errors.Wrap(err, fmt.Sprint("could not fetch required buffer size for windows service description query for service ", windows.UTF16PtrToString(serviceName)))
 	}
 
