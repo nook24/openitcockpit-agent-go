@@ -116,10 +116,10 @@ func newIpmiReplayBMC(recording *ipmiRecording) *ipmiReplayBMC {
 			}
 			continue
 		}
-		if _, ok := bmc.responses[key]; !ok {
-			bmc.responses[key] = response
-			delete(bmc.codes, key)
-		}
+		// The last successful response, e.g. the sensors are read twice by oitc-ipmi-dump and the readings in the dump
+		// are the ones of the last read
+		bmc.responses[key] = response
+		delete(bmc.codes, key)
 	}
 	return bmc
 }

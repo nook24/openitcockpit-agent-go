@@ -280,6 +280,79 @@ func TestIpmiReplaySupermicro(t *testing.T) {
 	}
 }
 
+func TestIpmiReplayHpAndWortmann(t *testing.T) {
+	skipIpmiCompletionCodesOnWindows(t)
+
+	t.Run("HP iLO 4 on Windows", func(t *testing.T) {
+		// A large window, so the entries of the recording stay within the window
+		result := collectIpmiReplay(t, newIpmiReader(50*365*24*time.Hour), "hp-ilo4-windows.json")
+		if len(result.Errors) != 0 || result.Device.ManufacturerID != 11 || result.Device.FirmwareRevision != "2.81" {
+			t.Fatalf("unexpected result: %+v %v", result.Device, result.Errors)
+		}
+		states := map[string]int{}
+		for _, sensor := range result.Sensors {
+			states[sensor.State]++
+		}
+		if len(result.Sensors) != 84 || states["ok"] != 72 || states["na"] != 12 {
+			t.Errorf("unexpected sensor states: %v of %d sensors", states, len(result.Sensors))
+		}
+		if s := ipmiSensorByName(t, result, "Fan 5 DutyCycle"); s.Reading == nil || *s.Reading != 12.936 {
+			t.Errorf("unexpected fan duty cycle: %+v", s)
+		}
+		// The SEL is full and only contains restarts of Windows: "OS Graceful Shutdown" is no warning
+		if sel := result.Sel; sel.Entries != 64 || sel.PercentUsed != 100 || !sel.Overflow || len(sel.Events) != 0 {
+			t.Errorf("unexpected sel: %+v", sel)
+		}
+	})
+
+	t.Run("HPE iLO 5 on Linux", func(t *testing.T) {
+		result := collectIpmiReplay(t, newIpmiReader(50*365*24*time.Hour), "hpe-ilo5-linux.json")
+		if len(result.Errors) != 0 || result.Device.ManufacturerID != 47196 || result.Device.FirmwareRevision != "3.08" {
+			t.Fatalf("unexpected result: %+v %v", result.Device, result.Errors)
+		}
+		// The recording contains the answers of the BMC for the sensors of the other controllers (e.g. the drives 0x28 and
+		// the fans 0x44), as the recording proxy does not know the target address. Only the BMC sensors are checked.
+		bmcStates := map[string]int{}
+		for _, sensor := range result.Sensors {
+			if sensor.Owner == 0x20 {
+				bmcStates[sensor.State]++
+			}
+		}
+		if bmcStates["ok"] != 32 || bmcStates["ok"]+bmcStates["na"] != 59 {
+			t.Errorf("unexpected states of the BMC sensors: %v", bmcStates)
+		}
+		if s := ipmiSensorByName(t, result, "01-Inlet Ambient"); s.State != "ok" || s.Reading == nil || *s.Reading != 24 {
+			t.Errorf("unexpected inlet temperature: %+v", s)
+		}
+		if sel := result.Sel; sel.Entries != 512 || sel.PercentUsed != 100 || sel.Overflow {
+			t.Errorf("unexpected sel: %+v", sel)
+		}
+		powerSupply := 0
+		for _, event := range result.Sel.Events {
+			if event.Sensor == "Power Supply 2" && event.Description == "Power Supply Failure detected" && event.Severity == "Critical" {
+				powerSupply++
+			}
+		}
+		if len(result.Sel.Events) != 49 || powerSupply == 0 {
+			t.Errorf("unexpected events: %d events, %d power supply failures", len(result.Sel.Events), powerSupply)
+		}
+	})
+
+	t.Run("Wortmann on Windows", func(t *testing.T) {
+		result := collectIpmiReplay(t, newIpmiReader(time.Hour), "wortmann-windows.json")
+		if len(result.Errors) != 0 || len(result.Sensors) != 23 {
+			t.Fatalf("unexpected result: %d sensors %v", len(result.Sensors), result.Errors)
+		}
+		if s := ipmiSensorByName(t, result, "CPU1 Temperature"); s.State != "ok" || s.Reading == nil || *s.Reading != 49 {
+			t.Errorf("unexpected temperature: %+v", s)
+		}
+		// The SEL is empty, Get SEL Entry answers with 0xcb
+		if sel := result.Sel; sel.Entries != 0 || sel.PercentUsed != 0 || len(sel.Events) != 0 {
+			t.Errorf("unexpected sel: %+v", sel)
+		}
+	})
+}
+
 // Recordings which must not be published (e.g. dumps of other companies) are tested with rules instead of expected values:
 // OITC_IPMI_PRIVATE_DUMPS=/path/to/dumps go test ./checks -run IpmiReplayPrivate
 func TestIpmiReplayPrivateDumps(t *testing.T) {
@@ -341,8 +414,7 @@ func TestIpmiReplayPrivateDumps(t *testing.T) {
 			}
 
 			// The readings of the BMC sensors match the readings of go-ipmi in the dump. go-ipmi reads every sensor twice,
-			// the replay answers with the first reading, so the values can differ slightly (e.g. one step of a fan).
-			// Wrong conversion factors differ by orders of magnitude.
+			// the replay answers with the last reading like the one in the dump. The tolerance covers rounding.
 			for _, recorded := range dump.Recorded.Sensors {
 				if recorded.GeneratorID != "0x0020" || !recorded.Threshold || recorded.Reading == "N/A" {
 					continue
