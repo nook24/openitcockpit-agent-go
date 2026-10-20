@@ -565,7 +565,12 @@ def test_windows() {
         cleanup_windows()
 
         catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-            bat "go.exe test -timeout=120s ./..."
+            if (env.GOARCH == 'arm64') {
+                // The arm64 test binaries can not be executed on the amd64 build node, so the code and the tests are only compiled and vetted
+                bat "go.exe vet ./..."
+            } else {
+                bat "go.exe test -timeout=120s ./..."
+            }
         }
     }
 }
