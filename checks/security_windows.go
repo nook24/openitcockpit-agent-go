@@ -204,12 +204,30 @@ func getAntivirusProducts() ([]*resultAntivirusProduct, error) {
 	return res, nil
 }
 
+// WMI error codes, see https://learn.microsoft.com/en-us/windows/win32/wmisdk/wmi-error-constants
+const (
+	wbemErrorInvalidNamespace = 0x8004100E
+	wbemErrorInvalidClass     = 0x80041010
+)
+
 // isWMINotFound returns true if a WMI namespace or class does not exist
 func isWMINotFound(err error) bool {
-	message := err.Error()
-	// WBEM_E_INVALID_NAMESPACE (0x8004100E) and WBEM_E_INVALID_CLASS (0x80041010)
-	for _, code := range []string{"8004100e", "80041010", "Invalid namespace", "Invalid class"} {
-		if strings.Contains(strings.ToLower(message), strings.ToLower(code)) {
+	// The error message is localized (e.g. "Ungültiger Namespace" on German systems), so the WMI error code is checked
+	var oleError *ole.OleError
+	if errors.As(err, &oleError) {
+		code := uint32(oleError.Code())
+		// The scripting API reports WMI errors as DISP_E_EXCEPTION with the WMI error code in the EXCEPINFO
+		if info, ok := oleError.SubError().(ole.EXCEPINFO); ok && info.SCODE() != 0 {
+			code = info.SCODE()
+		}
+		if code == wbemErrorInvalidNamespace || code == wbemErrorInvalidClass {
+			return true
+		}
+	}
+
+	message := strings.ToLower(err.Error())
+	for _, text := range []string{"8004100e", "80041010", "invalid namespace", "invalid class"} {
+		if strings.Contains(message, text) {
 			return true
 		}
 	}
