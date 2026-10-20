@@ -201,7 +201,13 @@ func TestEventLogEvtApiCompareWithWmi(t *testing.T) {
 				continue
 			}
 			compared++
-			if record.EventID != wmiRecord.EventID || record.EntryType != wmiRecord.EntryType || record.Source != wmiRecord.Source || record.TimeGenerated != wmiRecord.TimeGenerated {
+			// WMI reports records of the level LogAlways (e.g. Microsoft-Windows-Security-SPP 902/903) as type 0,
+			// which the check receiver handles as information like the EvtApi method
+			wmiEntryType := wmiRecord.EntryType
+			if wmiEntryType == 0 {
+				wmiEntryType = entryTypeInformation
+			}
+			if record.EventID != wmiRecord.EventID || record.EntryType != wmiEntryType || record.Source != wmiRecord.Source || record.TimeGenerated != wmiRecord.TimeGenerated {
 				t.Errorf("%s record %d differs:\nevtapi: %+v\nwmi:    %+v", channel, record.Index, record, wmiRecord)
 			}
 			if strings.TrimSpace(record.Message) == strings.TrimSpace(wmiRecord.Message) {

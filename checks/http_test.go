@@ -181,7 +181,9 @@ func TestCheckHTTPConnectionErrors(t *testing.T) {
 		&config.HTTPDefinition{Name: "invalid", ConfigError: "invalid url"},
 	)
 
-	if res := results["refused"]; res.StatusCode != 0 || !strings.Contains(res.ConnectionError, "refused") {
+	// The message of the operating system is localized, e.g. on German Windows systems
+	// "dial tcp 127.0.0.1:1234: connectex: Es konnte keine Verbindung hergestellt werden, ..."
+	if res := results["refused"]; res.StatusCode != 0 || !strings.Contains(res.ConnectionError, "dial tcp "+listener.Addr().String()) {
 		t.Errorf("expected connection refused: %+v", res)
 	}
 	if res := results["untrusted"]; res.StatusCode != 0 || !strings.Contains(res.ConnectionError, "certificate") {
