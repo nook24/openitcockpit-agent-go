@@ -263,3 +263,36 @@ func TestCheckNetworkPorts(t *testing.T) {
 		}
 	}
 }
+
+// macOS 15 and older report the pid in its own column, without the name of the process
+func TestParseDarwinNetstatPidColumn(t *testing.T) {
+	outputs := []string{
+		// macOS 15.7 (Intel), addresses replaced
+		`Active Internet connections (including servers)
+Proto Recv-Q Send-Q  Local Address                                 Foreign Address                               (state)          rxbytes      txbytes  rhiwat  shiwat    pid   epid state  options           gencnt    flags   flags1 usecnt rtncnt fltrs
+tcp4       0      0  192.0.2.10.22                                 198.51.100.1.59909                            ESTABLISHED        11200         4933  131072  131376  59554      0 00182 0000000c 00000000007207b6 20000080 01000900      3      0 000004
+udp4       0      0  *.49466                                       *.*                                                                  0       138117  786896    9216    137      0 00180 00000000 00000000006feb41 00000000 04000800      1      0 000002
+`,
+		// Older versions without rxbytes and txbytes
+		`Active Internet connections (including servers)
+Proto Recv-Q Send-Q  Local Address          Foreign Address        (state)     rhiwat shiwat    pid   epid  state    options
+tcp4       0      0  192.0.2.10.22          198.51.100.1.59909     ESTABLISHED 131072 131376  59554      0 0x0182 0x0000000c
+udp4       0      0  *.49466                *.*                                786896   9216    137      0 0x0180 0x00000000
+`,
+	}
+	expected := []networkSocket{
+		{Protocol: "tcp", Family: 4, LocalIP: "192.0.2.10", LocalPort: 22, RemoteIP: "198.51.100.1", RemotePort: 59909, State: "established", Pid: 59554},
+		{Protocol: "udp", Family: 4, LocalIP: "0.0.0.0", LocalPort: 49466, RemoteIP: "0.0.0.0", State: "listen", Pid: 137},
+	}
+	for i, output := range outputs {
+		sockets := parseDarwinNetstat([]byte(output))
+		if len(sockets) != len(expected) {
+			t.Fatalf("output %d: expected %d sockets, got %d", i, len(expected), len(sockets))
+		}
+		for j, socket := range sockets {
+			if *socket != expected[j] {
+				t.Errorf("output %d socket %d: expected %+v, got %+v", i, j, expected[j], *socket)
+			}
+		}
+	}
+}

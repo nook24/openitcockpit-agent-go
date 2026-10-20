@@ -186,14 +186,47 @@ func parseFreeBSDSockstat(output []byte) []*networkSocket {
 // The process is reported since macOS 12 in the column process:pid, which is followed by 8 columns:
 // tcp4 0 0  192.168.1.221.22  192.168.1.108.56582  ESTABLISHED  7848 3202 131072 131768  sshd-session:4998  00182 0000000c 000000000009d351 00000080 01000800 2 0 000000
 // udp4 0 0  *.61805  *.*  0 57836 786896 9216  syslogd:133  00180 00000000 000000000009c93e 00000000 04000800 1 0 000002
+// darwinNetstatColumns are the positions of the process columns of netstat -v, counted from the first column after
+// (state). The columns differ between the versions of macOS:
+//
+//	newer versions (e.g. macOS 26): rxbytes txbytes rhiwat shiwat process:pid state options ...
+//	macOS 15:                       rxbytes txbytes rhiwat shiwat pid epid state options ...
+//	older versions:                 rhiwat shiwat pid epid state options ...
+type darwinNetstatColumns struct {
+	process  int // process:pid, -1 if not available
+	pid      int // pid, -1 if not available
+	trailing int // number of columns after process:pid, as the process name can contain spaces
+}
+
+func parseDarwinNetstatHeader(line string) darwinNetstatColumns {
+	columns := darwinNetstatColumns{process: -1, pid: -1}
+	fields := strings.Fields(line)
+	for i, field := range fields {
+		if field != "(state)" {
+			continue
+		}
+		for j, column := range fields[i+1:] {
+			switch column {
+			case "process:pid":
+				columns.process = j
+				columns.trailing = len(fields) - i - 1 - j - 1
+			case "pid":
+				columns.pid = j
+			}
+		}
+		break
+	}
+	return columns
+}
+
 func parseDarwinNetstat(output []byte) []*networkSocket {
 	var sockets []*networkSocket
-	hasProcess := false
+	columns := darwinNetstatColumns{process: -1, pid: -1}
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "Proto") {
-			hasProcess = strings.Contains(line, "process:pid")
+			columns = parseDarwinNetstatHeader(line)
 			continue
 		}
 		fields := strings.Fields(line)
@@ -207,26 +240,32 @@ func parseDarwinNetstat(output []byte) []*networkSocket {
 		localAddress, localPort := splitBsdAddress(fields[3])
 		remoteAddress, remotePort := splitBsdAddress(fields[4])
 		state := ""
-		processColumn := 9
+		// First column after (state), UDP sockets have no state
+		offset := 5
 		if protocol == "tcp" {
 			if len(fields) < 6 {
 				continue
 			}
 			state = fields[5]
-			processColumn = 10
+			offset = 6
 		}
 		socket := newBsdSocket(fields[0], localAddress, strconv.Itoa(int(localPort)), remoteAddress, strconv.Itoa(int(remotePort)), state)
 		if socket == nil {
 			continue
 		}
-		// The name of the process can contain spaces
-		if hasProcess && len(fields)-8 > processColumn {
-			process := strings.Join(fields[processColumn:len(fields)-8], " ")
+		if column := offset + columns.process; columns.process >= 0 && len(fields)-columns.trailing > column {
+			// The name of the process can contain spaces
+			process := strings.Join(fields[column:len(fields)-columns.trailing], " ")
 			if i := strings.LastIndex(process, ":"); i > 0 {
 				if pid, err := strconv.ParseInt(process[i+1:], 10, 32); err == nil {
 					socket.Pid = int32(pid)
 					socket.Process = process[:i]
 				}
+			}
+		} else if column := offset + columns.pid; columns.pid >= 0 && len(fields) > column {
+			// Only the pid (macOS 15 and older), the name of the process is added by the caller
+			if pid, err := strconv.ParseInt(fields[column], 10, 32); err == nil {
+				socket.Pid = int32(pid)
 			}
 		}
 		sockets = append(sockets, socket)
