@@ -379,9 +379,21 @@ func readIpmiDiscreteSensor(sensor *types.Sensor, result *resultIpmiSensor) {
 		if ipmiAbsentState(sensor.EventReadingType, sensor.SensorType, offset) {
 			continue
 		}
-		severity := ipmiSeverityState(sensor.EventReadingType.EventSeverity(sensor.SensorType, types.EventData{EventData1: offset}, false))
+		severity := ipmiEventSeverity(sensor.EventReadingType, sensor.SensorType, types.EventData{EventData1: offset}, false)
 		result.State = worseIpmiState(result.State, severity)
 	}
+}
+
+// ipmiEventSeverity returns the state (ok, warning or critical) of an event. go-ipmi uses the severities of ipmitool,
+// which reports a planned shutdown of the operating system as warning, e.g. every restart of Windows on HP servers.
+func ipmiEventSeverity(readingType types.EventReadingType, sensorType types.SensorType, data types.EventData, dir types.EventDir) string {
+	if readingType == types.EventReadingTypeSensorSpecific && sensorType == types.SensorTypeOSStopShutdown {
+		switch data.EventReadingOffset() {
+		case 0x02, 0x03: // OS Graceful Stop, OS Graceful Shutdown
+			return "ok"
+		}
+	}
+	return ipmiSeverityState(readingType.EventSeverity(sensorType, data, dir))
 }
 
 // ipmiSeverityState converts the severity of an event to ok, warning or critical
@@ -551,7 +563,7 @@ func ipmiSelEvent(sel *types.SEL, sensorNames map[ipmiSensorKey]string) *resultI
 			event.Description = fmt.Sprintf("Event offset %#02x", standard.EventData.EventReadingOffset())
 		}
 		if event.Asserted {
-			switch ipmiSeverityState(standard.EventReadingType.EventSeverity(standard.SensorType, standard.EventData, standard.EventDir)) {
+			switch ipmiEventSeverity(standard.EventReadingType, standard.SensorType, standard.EventData, standard.EventDir) {
 			case "critical":
 				event.Severity = "Critical"
 			case "warning":
