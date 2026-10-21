@@ -24,6 +24,15 @@ func skipIpmiCompletionCodesOnWindows(t *testing.T) {
 	}
 }
 
+// skipLargeIpmiReplayWithRace skips the replay of the dumps of real BMCs with the race detector. The replay starts the test
+// binary for every IPMI command, which takes more than 10 minutes for one dump with the race detector. The concurrency
+// of the collector is tested by the smaller recordings (healthy.json, failures.json).
+func skipLargeIpmiReplayWithRace(t *testing.T) {
+	if raceEnabled {
+		t.Skip("the replay of the dumps of real BMCs is too slow with the race detector")
+	}
+}
+
 func collectIpmiReplay(t *testing.T, reader *ipmiReader, name string) *resultIpmi {
 	t.Helper()
 	// The replay executes the test binary for every command, which is slow with the race detector
@@ -215,6 +224,7 @@ func TestIpmiDiscreteUndefinedBits(t *testing.T) {
 
 // Recordings of two Supermicro H11DSi-NT (AMD EPYC) with partially populated DIMM slots and fans
 func TestIpmiReplaySupermicro(t *testing.T) {
+	skipLargeIpmiReplayWithRace(t)
 	skipIpmiCompletionCodesOnWindows(t)
 	// ipmitool reports the firmware 1.52
 	reader := newIpmiReader(time.Hour)
@@ -281,6 +291,7 @@ func TestIpmiReplaySupermicro(t *testing.T) {
 }
 
 func TestIpmiReplayHpAndWortmann(t *testing.T) {
+	skipLargeIpmiReplayWithRace(t)
 	skipIpmiCompletionCodesOnWindows(t)
 
 	t.Run("HP iLO 4 on Windows", func(t *testing.T) {
@@ -356,6 +367,7 @@ func TestIpmiReplayHpAndWortmann(t *testing.T) {
 // Recordings which must not be published (e.g. dumps of other companies) are tested with rules instead of expected values:
 // OITC_IPMI_PRIVATE_DUMPS=/path/to/dumps go test ./checks -run IpmiReplayPrivate
 func TestIpmiReplayPrivateDumps(t *testing.T) {
+	skipLargeIpmiReplayWithRace(t)
 	skipIpmiCompletionCodesOnWindows(t)
 	dir := os.Getenv("OITC_IPMI_PRIVATE_DUMPS")
 	if dir == "" {

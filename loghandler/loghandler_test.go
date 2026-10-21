@@ -128,55 +128,26 @@ func TestLogHandlerCancel(t *testing.T) {
 	}
 	lh.Start(ctx)
 
-	done := make(chan struct{})
-	go func() {
-		ticker := time.NewTicker(time.Second / 8)
-		timeout := time.After(time.Second * 2)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-timeout:
-				return
-			case <-ticker.C:
-				if lh.logFile != nil {
-					done <- struct{}{}
-					return
-				}
-			}
-		}
-	}()
-
-	select {
-	case <-done:
-		// ok
-	case <-time.After(time.Second * 2):
-		t.Fatal("timeout for loghandler load")
+	// The log file is opened by Start
+	if _, err := os.Stat(lh.LogPath); err != nil {
+		t.Fatal("log file was not created: ", err)
 	}
-
-	go func() {
-		ticker := time.NewTicker(time.Second / 8)
-		timeout := time.After(time.Second * 2)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-timeout:
-				return
-			case <-ticker.C:
-				if lh.logFile == nil {
-					done <- struct{}{}
-					return
-				}
-			}
-		}
-	}()
 
 	cancel()
 
+	// The log handler closes the log file after the context got canceled
+	stopped := make(chan struct{})
+	go func() {
+		lh.wg.Wait()
+		close(stopped)
+	}()
 	select {
-	case <-done:
-		// ok
+	case <-stopped:
 	case <-time.After(time.Second * 2):
 		t.Fatal("timeout for cancel loghandler")
+	}
+	if lh.logFile != nil {
+		t.Error("the log file was not closed")
 	}
 }
 
