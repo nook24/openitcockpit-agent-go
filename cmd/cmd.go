@@ -31,6 +31,7 @@ type RootCmd struct {
 	logRotate        int
 	shutdown         chan struct{}
 	wg               sync.WaitGroup
+	wgMtx            sync.Mutex
 
 	platformPath platformpaths.PlatformPath
 }
@@ -164,7 +165,10 @@ func New() *RootCmd {
 }
 
 func (r *RootCmd) Execute() error {
+	// Shutdown can be called concurrently, so wg.Add has to happen before wg.Wait (mutex)
+	r.wgMtx.Lock()
 	r.wg.Add(1)
+	r.wgMtx.Unlock()
 	defer r.wg.Done()
 
 	return r.cmd.Execute()
@@ -172,5 +176,7 @@ func (r *RootCmd) Execute() error {
 
 func (r *RootCmd) Shutdown() {
 	close(r.shutdown)
+	r.wgMtx.Lock()
+	defer r.wgMtx.Unlock()
 	r.wg.Wait()
 }
