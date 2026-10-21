@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -25,6 +26,11 @@ func (d DnfManager) getPkgManagerBinary() string {
 	}
 	// fallback to dnf
 	return "dnf"
+}
+
+// isYum returns true for yum (e.g. CentOS 7). Since CentOS/RHEL 8 yum is an alias of dnf.
+func isYum(bin string) bool {
+	return filepath.Base(bin) == "yum"
 }
 
 // IsAvailable checks if dnf is available on the system
@@ -63,8 +69,13 @@ func (d DnfManager) ListInstalledPackages(ctx context.Context) ([]Package, error
 func (d DnfManager) getInstalledPackagesWithCancel(ctx context.Context) (string, error) {
 	timeout := 10 * time.Second
 	bin := d.getPkgManagerBinary()
+	// dnf5 (Fedora 41 and newer) searches for a package named "installed" with "list installed", dnf4 knows both
+	command := bin + " list --installed"
+	if isYum(bin) {
+		command = bin + " list installed"
+	}
 	result, err := utils.RunCommand(ctx, utils.CommandArgs{
-		Command: bin + " list installed",
+		Command: command,
 		Timeout: timeout,
 		Env: map[string]string{
 			"LANG": "C",
@@ -90,7 +101,8 @@ func (d DnfManager) parseDnfListInstalledOutput(output string) ([]Package, error
 		}
 		// Skip header lines until we find the actual package list
 		if !foundHeader {
-			if strings.HasPrefix(line, "Installed Packages") {
+			// dnf4: "Installed Packages", dnf5: "Installed packages"
+			if strings.HasPrefix(strings.ToLower(line), "installed packages") {
 				foundHeader = true
 			}
 			continue
@@ -192,7 +204,7 @@ func (d DnfManager) parseDnfCheckUpdateOutput(packagesToUpdateOutput string, ins
 			continue
 		}
 
-		if line == "Obsoleting Packages" {
+		if strings.EqualFold(line, "Obsoleting Packages") {
 			// Stop processing at the Obsoleting Packages section
 			// These packages are replaced by others and should not be listed as upgradable
 			break
@@ -230,8 +242,13 @@ func (d DnfManager) getSecurityRelevantUpdates(ctx context.Context) (string, err
 	// dnf updateinfo info --available
 	timeout := 300 * time.Second
 	bin := d.getPkgManagerBinary()
+	// dnf5 searches for an advisory named "security" with "updateinfo list --available security"
+	command := bin + " updateinfo list --security"
+	if isYum(bin) {
+		command = bin + " updateinfo list --available security"
+	}
 	result, err := utils.RunCommand(ctx, utils.CommandArgs{
-		Command: bin + " updateinfo list --available security",
+		Command: command,
 		Timeout: timeout,
 		Env: map[string]string{
 			"LANG": "C",
@@ -254,7 +271,8 @@ func (d DnfManager) parseDnfSecurityUpdateOutput(output string) (map[string]bool
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) < 3 {
+		if len(fields) < 3 || fields[0] == "Name" {
+			// dnf5 prints a header: Name Type Severity Package Issued
 			continue
 		}
 
@@ -265,6 +283,10 @@ func (d DnfManager) parseDnfSecurityUpdateOutput(output string) (map[string]bool
 		// RHSA = Red Hat Security Advisory
 		// RLSA = Rocky Linux Security Advisory
 		pkgWithVersionAndArch := fields[2]
+		if fields[1] == "security" && len(fields) >= 4 {
+			// dnf5: FEDORA-2026-12f3f3d569 security Important openssl-libs-1:3.5.9-1.fc44.x86_64 2026-10-03 01:09:41
+			pkgWithVersionAndArch = fields[3]
+		}
 
 		// Some packages may appear multiple times with different advisories.
 		// We use a map to avoid duplicates.

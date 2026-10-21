@@ -924,3 +924,46 @@ shortline`,
 		})
 	}
 }
+
+// dnf5 (Fedora 44): dnf list --installed
+var dnf5ListInstalledOutput = `Installed packages
+alternatives.x86_64                      1.33-5.fc44                97840e1176ff4d8b98a420e1faba3487
+audit-libs.x86_64                        4.2.1-1.fc44               0eae96ab45874228a86a12a132e699ed
+openssl-libs.x86_64                      1:3.5.8-1.fc44             97840e1176ff4d8b98a420e1faba3487
+`
+
+// dnf5 (Fedora 44): dnf updateinfo list --security
+var dnf5SecurityOutput = `Name                   Type     Severity                             Package              Issued
+FEDORA-2026-044e56d9ff security Moderate            tar-2:1.35-9.fc44.x86_64 2026-09-09 04:47:08
+FEDORA-2026-12f3f3d569 security Important openssl-libs-1:3.5.9-1.fc44.x86_64 2026-10-03 01:09:41
+`
+
+// dnf5 (Fedora 44): dnf --quiet check-update
+var dnf5CheckUpdateOutput = `Upgrades
+ca-certificates.noarch             2026.2.90_v9.0.317-1.fc44 updates
+openssl-libs.x86_64                1:3.5.9-1.fc44            updates
+`
+
+func TestDnfManager_dnf5(t *testing.T) {
+	d := DnfManager{}
+	installed, err := d.parseDnfListInstalledOutput(dnf5ListInstalledOutput)
+	if err != nil || len(installed) != 3 || installed[2].Name != "openssl-libs" || installed[2].Version != "1:3.5.8-1.fc44" {
+		t.Fatalf("unexpected installed packages: %+v %v", installed, err)
+	}
+
+	security, err := d.parseDnfSecurityUpdateOutput(dnf5SecurityOutput)
+	if err != nil || len(security) != 2 || !security["tar"] || !security["openssl-libs"] {
+		t.Fatalf("unexpected security updates: %v %v", security, err)
+	}
+
+	updates, err := d.parseDnfCheckUpdateOutput(dnf5CheckUpdateOutput, installed, security)
+	if err != nil || len(updates) != 2 {
+		t.Fatalf("unexpected updates: %+v %v", updates, err)
+	}
+	if u := updates[1]; u.Name != "openssl-libs" || u.CurrentVersion != "1:3.5.8-1.fc44" || u.AvailableVersion != "1:3.5.9-1.fc44" || !u.IsSecurityUpdate {
+		t.Errorf("unexpected update: %+v", u)
+	}
+	if u := updates[0]; u.Name != "ca-certificates" || u.IsSecurityUpdate {
+		t.Errorf("unexpected update: %+v", u)
+	}
+}
