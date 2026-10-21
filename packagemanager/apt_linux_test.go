@@ -6,8 +6,8 @@ import (
 )
 
 // Sample output of the command
-// dpkg-query -W  "-f=\${Package} \${Version} \${Description}\nEND\n"
-var dpkgQueryOutput = `apt 2.8.3 commandline package manager
+// dpkg-query -W  "-f=\${Status} \${Package} \${Version} \${Description}\nEND\n"
+var dpkgQueryOutput = `install ok installed apt 2.8.3 commandline package manager
  This package provides commandline tools for searching and
  managing as well as querying information about packages
  as a low-level access to all features of the libapt-pkg library.
@@ -22,19 +22,19 @@ var dpkgQueryOutput = `apt 2.8.3 commandline package manager
   * apt-config as an interface to the configuration settings
   * apt-key as an interface to manage authentication keys
 END
-base-files 13ubuntu10.3 Debian base system miscellaneous files
+install ok installed base-files 13ubuntu10.3 Debian base system miscellaneous files
  This package contains the basic filesystem hierarchy of a Debian system, and
  several important miscellaneous files, such as /etc/debian_version,
  /etc/host.conf, /etc/issue, /etc/motd, /etc/profile, and others,
  and the text of several common licenses in use on Debian systems.
 END
-sed 4.9-2build1 GNU stream editor for filtering/transforming text
+install ok installed sed 4.9-2build1 GNU stream editor for filtering/transforming text
  sed reads the specified files or the standard input if no
  files are specified, makes editing changes according to a
  list of commands, and writes the results to the standard
  output.
 END
-sensible-utils 0.0.22 Utilities for sensible alternative selection
+install ok installed sensible-utils 0.0.22 Utilities for sensible alternative selection
  This package provides a number of small utilities which are used
  by programs to sensibly select and spawn an appropriate browser,
  editor, pager, or terminal emulator.
@@ -42,7 +42,7 @@ sensible-utils 0.0.22 Utilities for sensible alternative selection
  The specific utilities included are: sensible-browser sensible-editor
  sensible-pager sensible-terminal
 END
-sysvinit-utils 3.08-6ubuntu3 System-V-like utilities
+install ok installed sysvinit-utils 3.08-6ubuntu3 System-V-like utilities
  This package contains the important System-V-like utilities.
  .
  Specifically, this package includes:
@@ -51,29 +51,46 @@ sysvinit-utils 3.08-6ubuntu3 System-V-like utilities
  It also contains the library scripts sourced by init-d-script and other
  initscripts that were formally in lsb-base.
 END
-tar 1.35+dfsg-3build1 GNU version of the tar archiving utility
+install ok installed tar 1.35+dfsg-3build1 GNU version of the tar archiving utility
  Tar is a program for packaging a set of files as a single archive in tar
  format.  The function it performs is conceptually similar to cpio, and to
  things like PKZIP in the DOS world.  It is heavily used by the Debian package
  management system, and is useful for performing system backups and exchanging
  sets of files with others.
 END
-ubuntu-keyring 2023.11.28.1 GnuPG keys of the Ubuntu archive
+install ok installed ubuntu-keyring 2023.11.28.1 GnuPG keys of the Ubuntu archive
  The Ubuntu project digitally signs its Release files. This package
  contains the archive keys used for that.
 END
-unminimize 0.2.1 Un-minimize your minimial images or setup
+install ok installed unminimize 0.2.1 Un-minimize your minimial images or setup
  This package contains the unminimize script that helps the user in
  unminimizing their minimized images or cloud setup.
 END
-util-linux 2.39.3-9ubuntu6.3 miscellaneous system utilities
+install ok installed util-linux 2.39.3-9ubuntu6.3 miscellaneous system utilities
  This package contains a number of important utilities, most of which
  are oriented towards maintenance of your system. Some of the more
  important utilities included in this package allow you to view kernel
  messages, create new filesystems, view block device information,
  interface with real time clock, etc.
 END
-zlib1g 1:1.3.dfsg-3.1ubuntu2.1 compression library - runtime
+deinstall ok config-files lynx 2.9.2-1 classic non-graphical (text-mode) web browser
+ Lynx is a fully-featured World Wide Web (WWW) client for users running
+ cursor-addressable, character-cell display devices.
+END
+deinstall ok config-files lynx-common 2.9.2-1 shared files for lynx package
+ This package contains the documentation and the configuration files of lynx.
+END
+hold ok installed figlet 2.2.5-3+b2 Make large character ASCII banners out of ordinary text
+ FIGlet prints its input using large characters made up of ordinary
+ screen characters.
+END
+deinstall ok installed nano 7.2-2 small, friendly text editor inspired by Pico
+ GNU nano is an easy-to-use text editor.
+END
+install ok half-configured broken-pkg 1.0-1 package whose postinst failed
+ The files of this package are installed.
+END
+install ok installed zlib1g 1:1.3.dfsg-3.1ubuntu2.1 compression library - runtime
  zlib is a library implementing the deflate compression method found
  in gzip and PKZIP.  This package includes the shared library.
 END`
@@ -427,6 +444,21 @@ func TestAptManager_parseDpkgOutput(t *testing.T) {
 			wantVersion: "1:1.3.dfsg-3.1ubuntu2.1",
 			wantDesc:    "compression library - runtime",
 		},
+	}
+
+	// Removed packages ("rc") are no longer installed, held packages ("hi"), packages marked for removal and broken
+	// packages ("iF") are still installed
+	installed := map[string]bool{}
+	for _, pkg := range packages {
+		installed[pkg.Name] = true
+	}
+	for name, want := range map[string]bool{"lynx": false, "lynx-common": false, "figlet": true, "nano": true, "broken-pkg": true} {
+		if installed[name] != want {
+			t.Errorf("%s: installed=%v, want %v", name, installed[name], want)
+		}
+	}
+	if len(packages) != 13 {
+		t.Errorf("expected 13 installed packages, got %d", len(packages))
 	}
 
 	for _, tt := range tests {

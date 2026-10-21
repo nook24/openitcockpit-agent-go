@@ -47,7 +47,8 @@ func (a AptManager) ListInstalledPackages(ctx context.Context) ([]Package, error
 func (a AptManager) getInstalledPackagesWithCancel(ctx context.Context) (string, error) {
 	timeout := 10 * time.Second
 	result, err := utils.RunCommand(ctx, utils.CommandArgs{
-		Command: "dpkg-query -W -f=\"${Package} ${Version} ${Description}\nEND\n\"",
+		// dpkg-query -W also lists packages which got removed, but not purged (state "rc", config-files)
+		Command: "dpkg-query -W -f=\"${Status} ${Package} ${Version} ${Description}\nEND\n\"",
 		Timeout: timeout,
 		Env: map[string]string{
 			"LANG": "C",
@@ -65,18 +66,24 @@ func (a AptManager) parseDpkgOutput(output string) ([]Package, error) {
 	lines := strings.Split(output, "\nEND\n")
 	var pkgs []Package
 	for _, line := range lines {
-		// package version description
-		// zsh 5.9-6ubuntu2 shell with lots of features <until END>
-		parts := strings.SplitN(line, " ", 3)
+		// want flag status package version description
+		// install ok installed zsh 5.9-6ubuntu2 shell with lots of features <until END>
+		parts := strings.SplitN(line, " ", 6)
 
-		if len(parts) < 3 {
+		if len(parts) < 6 {
+			continue
+		}
+
+		switch parts[2] {
+		case "not-installed", "config-files":
+			// Removed packages, "rc" only has its configuration files left
 			continue
 		}
 
 		pkgs = append(pkgs, Package{
-			Name:        parts[0],
-			Version:     parts[1],
-			Description: parts[2],
+			Name:        parts[3],
+			Version:     parts[4],
+			Description: parts[5],
 		})
 	}
 	return pkgs, nil
