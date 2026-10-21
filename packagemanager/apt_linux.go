@@ -223,8 +223,9 @@ func (a AptManager) CollectPackageInfo(ctx context.Context, limitDescriptionLeng
 	if enableUpdateCheck {
 		upgradablePackages, err = a.ListUpgradablePackages(ctx)
 		if err != nil {
+			// The installed packages are reported, even if the updates can not be determined
+			// (e.g. a repository is not reachable or a required tool like checkupdates is not installed)
 			result.Stats.LastError = err
-			return result, err
 		}
 		result.Stats.UpgradablePackages = int64(len(upgradablePackages))
 

@@ -347,7 +347,10 @@ func (d DnfManager) RebootRequired(ctx context.Context) (bool, error) {
 		}
 	}
 
-	// yum-utils and dnf-utils provide needs-restarting command
+	// yum-utils and dnf-utils provide needs-restarting command, which is not installed on minimal systems
+	if _, err := exec.LookPath("needs-restarting"); err != nil {
+		return false, nil
+	}
 	timeout := 60 * time.Second
 	// needs-restarting is available with both dnf-utils and yum-utils
 	result, err := utils.RunCommand(ctx, utils.CommandArgs{
@@ -418,8 +421,9 @@ func (d DnfManager) CollectPackageInfo(ctx context.Context, limitDescriptionLeng
 	if enableUpdateCheck {
 		upgradablePackages, err = d.ListUpgradablePackages(ctx)
 		if err != nil {
+			// The installed packages are reported, even if the updates can not be determined
+			// (e.g. a repository is not reachable or a required tool like checkupdates is not installed)
 			result.Stats.LastError = err
-			return result, err
 		}
 		result.Stats.UpgradablePackages = int64(len(upgradablePackages))
 
@@ -433,10 +437,10 @@ func (d DnfManager) CollectPackageInfo(ctx context.Context, limitDescriptionLeng
 		result.Stats.SecurityUpdates = securityUpdates
 	}
 
+	// The installed packages are reported, even if it can not be determined if a reboot is required
 	rebootRequired, err := d.RebootRequired(ctx)
 	if err != nil {
 		result.Stats.LastError = err
-		return result, err
 	}
 	result.Stats.RebootRequired = rebootRequired
 
