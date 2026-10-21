@@ -73,20 +73,22 @@ func (r *RootCmd) preRun(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		// The agent also runs if the log file can not be written (e.g. if the disk is full). It logs to stderr then and
+		// opens the log file as soon as possible.
 		fl, err := os.OpenFile(r.logPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
 		if err != nil {
-			return fmt.Errorf("Could not open/create log file: %s", err)
-		}
-		fl.Close()
-		if !r.disableLogRotate {
-			testPath := filepath.Join(path.Dir(r.logPath), "agent.log.test")
-			fl, err := os.OpenFile(testPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
-			defer func() {
-				fl.Close()
-				os.Remove(testPath)
-			}()
-			if err != nil {
-				return fmt.Errorf("Test for log file rotation was not successful: %s (please check directory permissions)", err)
+			fmt.Fprintf(os.Stderr, "Warning: could not open/create log file: %s\n", err)
+		} else {
+			fl.Close()
+			if !r.disableLogRotate {
+				testPath := filepath.Join(path.Dir(r.logPath), "agent.log.test")
+				fl, err := os.OpenFile(testPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: test for log file rotation was not successful: %s (please check directory permissions)\n", err)
+				} else {
+					fl.Close()
+					os.Remove(testPath)
+				}
 			}
 		}
 	}
