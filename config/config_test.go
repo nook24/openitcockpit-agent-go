@@ -504,3 +504,344 @@ func TestReadAgentConfigWithCCAndNewConfig(t *testing.T) {
 		t.Error("reload did not work, unexpected number of custom checks (0): ", len(ccc))
 	}
 }
+
+var logfilesConfig string = `[default]
+
+[Nginx_Errors]
+  path = /var/log/nginx/*error.log
+  match = \[(crit|alert|emerg)\]
+  exclude = favicon\.ico
+  enabled = true
+
+[ssh]
+  type = journald
+  unit = ssh.service
+  priority = 0..4
+  match = ` + "`Failed password #\\d+`" + `
+  window = 600
+  max_lines = 5
+  max_read_bytes = 1024
+  enabled = true
+
+[disabled]
+  path = /var/log/syslog
+  enabled = false
+
+[invalid_regex]
+  path = /var/log/syslog
+  match = (unclosed
+  enabled = true
+
+[missing_path]
+  type = file
+  enabled = true
+
+[unknown_type]
+  type = eventlog
+  enabled = true
+`
+
+func TestReadLogfilesConfig(t *testing.T) {
+	cfgdir := t.TempDir()
+	path := filepath.Join(cfgdir, "logfiles.ini")
+	if err := os.WriteFile(path, []byte(logfilesConfig), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	definitions, err := unmarshalLogfiles(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	byName := map[string]*LogfileDefinition{}
+	for _, definition := range definitions {
+		byName[definition.Name] = definition
+	}
+	if len(byName) != 5 {
+		t.Fatal("expected 5 enabled definitions, got: ", len(byName))
+	}
+	if _, ok := byName["disabled"]; ok {
+		t.Error("disabled definition must be ignored")
+	}
+
+	// Section names are lower case
+	nginx := byName["nginx_errors"]
+	if nginx == nil {
+		t.Fatal("missing nginx_errors")
+	}
+	if nginx.ConfigError != "" || nginx.Type != LogfileTypeFile || nginx.Window != 300 || nginx.MaxLines != 10 || nginx.MaxReadBytes != 16*1024*1024 {
+		t.Errorf("unexpected defaults: %+v", nginx)
+	}
+	if !nginx.MatchRegexp.MatchString("2025/01/01 [crit] 123#0: foo") || !nginx.ExcludeRegexp.MatchString("/favicon.ico") {
+		t.Errorf("unexpected regular expressions: %s %s", nginx.Match, nginx.Exclude)
+	}
+
+	ssh := byName["ssh"]
+	if ssh.ConfigError != "" || ssh.Type != LogfileTypeJournald || ssh.Unit != "ssh.service" || ssh.Priority != "0..4" ||
+		ssh.Window != 600 || ssh.MaxLines != 5 || ssh.MaxReadBytes != 1024 {
+		t.Errorf("unexpected definition: %+v", ssh)
+	}
+	if ssh.Match != `Failed password #\d+` {
+		t.Errorf("unexpected match: %s", ssh.Match)
+	}
+
+	for name, expected := range map[string]string{
+		"invalid_regex": "invalid match regex",
+		"missing_path":  "missing path",
+		"unknown_type":  "unknown type",
+	} {
+		if !strings.Contains(byName[name].ConfigError, expected) {
+			t.Errorf("expected error '%s' for %s, got: '%s'", expected, name, byName[name].ConfigError)
+		}
+	}
+}
+
+func TestReadAgentConfigWithLogfiles(t *testing.T) {
+	cfgdir := t.TempDir()
+	configPath := filepath.Join(cfgdir, "config.ini")
+	logfilesPath := filepath.Join(cfgdir, "logfiles.ini")
+	if err := os.WriteFile(configPath, []byte("[default]\nlogfiles = "+logfilesPath+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// A missing logfiles.ini is not an error
+	c, err := Load(context.Background(), configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.LogfileConfiguration == nil || len(c.LogfileConfiguration) != 0 {
+		t.Fatal("expected empty logfile configuration")
+	}
+
+	if err := c.SaveLogfileConfiguration([]byte(logfilesConfig)); err != nil {
+		t.Fatal(err)
+	}
+	if string(c.ReadLogfileConfiguration()) != logfilesConfig {
+		t.Fatal("unexpected logfile configuration")
+	}
+
+	c, err = Load(context.Background(), configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.LogfileConfiguration) != 5 {
+		t.Fatal("unexpected number of logfile definitions (5): ", len(c.LogfileConfiguration))
+	}
+}
+
+func TestReadCertificatesAndFilesConfig(t *testing.T) {
+	cfgdir := t.TempDir()
+	configPath := filepath.Join(cfgdir, "config.ini")
+	certificatesPath := filepath.Join(cfgdir, "certificates.ini")
+	filesPath := filepath.Join(cfgdir, "files.ini")
+
+	config := fmt.Sprintf("[default]\ncertificates = %s\nfiles = %s\n", certificatesPath, filesPath)
+	if err := os.WriteFile(configPath, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	certificates := `[default]
+[letsencrypt]
+  path = /etc/letsencrypt/live/*/fullchain.pem
+  hostname = www.example.com
+  enabled = true
+[iis]
+  type = windows_store
+  subject = (?i)example\.com
+  enabled = true
+[disabled]
+  path = /tmp/foo.pem
+  enabled = false
+[missing_path]
+  enabled = true
+[invalid_subject]
+  type = windows_store
+  subject = (unclosed
+  enabled = true
+`
+	files := `[backup]
+  path = /backup/db-*.sql.gz
+  enabled = true
+[mailqueue]
+  type = directory
+  path = /var/spool/postfix/deferred
+  recursive = true
+  pattern = *
+  enabled = true
+[unknown]
+  type = socket
+  path = /tmp
+  enabled = true
+`
+	if err := os.WriteFile(certificatesPath, []byte(certificates), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filesPath, []byte(files), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	c, err := Load(context.Background(), configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	certificateDefinitions := map[string]*CertificateDefinition{}
+	for _, d := range c.CertificateConfiguration {
+		certificateDefinitions[d.Name] = d
+	}
+	if len(certificateDefinitions) != 4 {
+		t.Fatal("expected 4 enabled certificate definitions, got: ", len(certificateDefinitions))
+	}
+	if d := certificateDefinitions["letsencrypt"]; d.Type != CertificateTypeFile || d.Hostname != "www.example.com" || d.ConfigError != "" {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if d := certificateDefinitions["iis"]; d.Store != `LocalMachine\My` || d.SubjectRegexp == nil || !d.SubjectRegexp.MatchString("CN=WWW.EXAMPLE.COM") {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if !strings.Contains(certificateDefinitions["missing_path"].ConfigError, "missing path") {
+		t.Error("expected missing path error")
+	}
+	if !strings.Contains(certificateDefinitions["invalid_subject"].ConfigError, "invalid subject regex") {
+		t.Error("expected invalid subject regex error")
+	}
+
+	fileDefinitions := map[string]*FileDefinition{}
+	for _, d := range c.FileConfiguration {
+		fileDefinitions[d.Name] = d
+	}
+	if len(fileDefinitions) != 3 {
+		t.Fatal("expected 3 file definitions, got: ", len(fileDefinitions))
+	}
+	if d := fileDefinitions["backup"]; d.Type != FileTypeFile || d.MaxFiles != 100000 || d.ConfigError != "" {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if d := fileDefinitions["mailqueue"]; d.Type != FileTypeDirectory || !d.Recursive || d.Pattern != "*" {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if !strings.Contains(fileDefinitions["unknown"].ConfigError, "unknown type") {
+		t.Error("expected unknown type error")
+	}
+
+	if string(c.ReadCertificateConfiguration()) != certificates || string(c.ReadFileConfiguration()) != files {
+		t.Error("unexpected content of the configuration files")
+	}
+}
+
+func TestReadHTTPConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "http.ini")
+	content := `[intranet]
+  url = https://intranet.example.com/health
+  match = (?i)healthy
+  enabled = true
+[api]
+  url = http://127.0.0.1:8080/api/status
+  method = head
+  expected_status = 200-299, 301
+  follow_redirects = false
+  timeout = 3
+  enabled = true
+[invalid_url]
+  url = ftp://example.com
+  enabled = true
+[invalid_status]
+  url = http://example.com
+  expected_status = 500-200
+  enabled = true
+`
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	definitions, err := unmarshalHTTP(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]*HTTPDefinition{}
+	for _, d := range definitions {
+		byName[d.Name] = d
+	}
+
+	if d := byName["intranet"]; d.ConfigError != "" || d.Method != "GET" || d.Timeout != 10 || !*d.FollowRedirects || d.ExpectedStatus != "200-399" || d.MatchRegexp == nil {
+		t.Errorf("unexpected defaults: %+v", d)
+	}
+	if d := byName["api"]; d.ConfigError != "" || d.Method != "HEAD" || d.Timeout != 3 || *d.FollowRedirects || fmt.Sprint(d.ExpectedStatusRanges) != "[[200 299] [301 301]]" {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if !strings.Contains(byName["invalid_url"].ConfigError, "invalid url") {
+		t.Error("expected invalid url error")
+	}
+	if !strings.Contains(byName["invalid_status"].ConfigError, "invalid expected_status") {
+		t.Error("expected invalid status error")
+	}
+}
+
+func TestReadRedfishConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "redfish.ini")
+	content := "[server01]\n" +
+		"  url = https://10.0.0.10/redfish/v1/\n" +
+		"  username = monitoring\n" +
+		"  password = `pass#word;1`\n" +
+		"  skip_verify = true\n" +
+		"  enabled = true\n" +
+		"[server02]\n" +
+		"  url = https://bmc02.example.com:8443\n" +
+		"  fingerprint = AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89\n" +
+		"  interval = 10\n" +
+		"  timeout = 5\n" +
+		"  eventlog = false\n" +
+		"  eventlog_window = 3600\n" +
+		"  eventlog_services = ^Sel$\n" +
+		"  enabled = true\n" +
+		"[plain_http]\n" +
+		"  url = http://10.0.0.11\n" +
+		"  enabled = true\n" +
+		"[plain_http_allowed]\n" +
+		"  url = http://10.0.0.12\n" +
+		"  allow_http = true\n" +
+		"  enabled = true\n" +
+		"[invalid_fingerprint]\n" +
+		"  url = https://10.0.0.13\n" +
+		"  fingerprint = abc\n" +
+		"  enabled = true\n" +
+		"[disabled]\n" +
+		"  url = https://10.0.0.14\n" +
+		"  enabled = false\n"
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	definitions, err := unmarshalRedfish(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]*RedfishDefinition{}
+	for _, d := range definitions {
+		byName[d.Name] = d
+	}
+	if len(definitions) != 5 {
+		t.Fatalf("expected 5 enabled definitions, got %d", len(definitions))
+	}
+
+	d := byName["server01"]
+	if d.ConfigError != "" || d.URL != "https://10.0.0.10" || d.Password != "pass#word;1" || !d.SkipVerify {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+	if d.Interval != 300 || d.Timeout != 30 || !*d.Eventlog || d.EventlogWindow != 86400 || !d.EventlogServicesRegexp.MatchString("Sel") || d.EventlogServicesRegexp.MatchString("Lclog") {
+		t.Errorf("unexpected defaults: %+v", d)
+	}
+
+	d = byName["server02"]
+	if d.ConfigError != "" || d.URL != "https://bmc02.example.com:8443" || len(d.FingerprintBytes) != 32 || d.Interval != 60 || d.Timeout != 5 || *d.Eventlog || d.EventlogWindow != 3600 || d.EventlogServicesRegexp.MatchString("IML") {
+		t.Errorf("unexpected definition: %+v", d)
+	}
+
+	if !strings.Contains(byName["plain_http"].ConfigError, "plain text") {
+		t.Errorf("expected an error for http://: %s", byName["plain_http"].ConfigError)
+	}
+	if byName["plain_http_allowed"].ConfigError != "" {
+		t.Errorf("unexpected error: %s", byName["plain_http_allowed"].ConfigError)
+	}
+	if !strings.Contains(byName["invalid_fingerprint"].ConfigError, "invalid fingerprint") {
+		t.Errorf("expected an error for the fingerprint: %s", byName["invalid_fingerprint"].ConfigError)
+	}
+}

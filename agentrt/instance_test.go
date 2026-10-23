@@ -118,17 +118,19 @@ func TestAgentCancel(t *testing.T) {
 	rt.Reload()
 	cancel()
 
-	ticker := time.NewTicker(time.Microsecond * 200)
-	defer ticker.Stop()
-	timeout := time.NewTimer(time.Second * 10)
-	defer timeout.Stop()
+	// The agent stops all components after the context got canceled
+	stopped := make(chan struct{})
+	go func() {
+		rt.wg.Wait()
+		close(stopped)
+	}()
 	select {
-	case <-timeout.C:
+	case <-time.After(time.Second * 10):
 		t.Fatal("timeout waiting for shutdown")
-	case <-ticker.C:
-		if rt.logHandler == nil {
-			return
-		}
+	case <-stopped:
+	}
+	if rt.logHandler != nil {
+		t.Error("the log handler was not stopped")
 	}
 }
 

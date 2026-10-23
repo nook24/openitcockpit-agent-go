@@ -1,0 +1,1881 @@
+{
+  "tool": "oitc-ipmi-dump",
+  "version": "1.0",
+  "created": "2026-10-15T17:30:51Z",
+  "os": "linux/amd64",
+  "direct": {
+    "errors": [
+      "sel entries: GetSELEntry failed, err: cc: 0xcb, description: ipmiRes CompletionCode (0xcb) is not normal: Requested sensor, data, or record not found"
+    ],
+    "device_id": {
+      "DeviceID": 0,
+      "ProvideDeviceSDRs": false,
+      "DeviceRevision": 3,
+      "DeviceAvailable": true,
+      "MajorFirmwareRevision": 9,
+      "MinorFirmwareRevision": 8,
+      "MajorIPMIVersion": 2,
+      "MinorIPMIVersion": 0,
+      "SupportChassis": true,
+      "SupportBridge": false,
+      "SupportIPMBEventGenerator": false,
+      "SupportIPMBEventReceiver": true,
+      "SupportFRUInventory": true,
+      "SupportSEL": true,
+      "SupportSDRRepo": true,
+      "SupportSensor": true,
+      "ManufacturerID": 4753,
+      "ProductID": 3842,
+      "AuxiliaryFirmwareRevision": "AAAAAA=="
+    },
+    "chassis_status": {
+      "PowerRestorePolicy": 0,
+      "PowerControlFault": false,
+      "PowerFault": false,
+      "InterLock": false,
+      "PowerOverload": false,
+      "PowerIsOn": true,
+      "LastPowerOnByCommand": false,
+      "LastPowerDownByPowerFault": false,
+      "LastPowerDownByPowerInterlockActivated": false,
+      "LastPowerDownByPowerOverload": false,
+      "ACFailed": false,
+      "ChassisIdentifySupported": false,
+      "ChassisIdentifyState": 0,
+      "CollingFanFault": false,
+      "DriveFault": false,
+      "FrontPanelLockoutActive": false,
+      "ChassisIntrusionActive": false,
+      "SleepButtonDisableAllowed": false,
+      "DiagnosticButtonDisableAllowed": false,
+      "ResetButtonDisableAllowed": false,
+      "PoweroffButtonDisableAllowed": false,
+      "SleepButtonDisabled": false,
+      "DiagnosticButtonDisabled": false,
+      "ResetButtonDisabled": false,
+      "PoweroffButtonDisabled": false
+    },
+    "sensors": [
+      {
+        "number": "0x01",
+        "name": "Inlet Temp",
+        "type": "Temperature",
+        "entity": "air inlet",
+        "threshold": true,
+        "reading": "24.000",
+        "unit": "degrees C",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "24.000 degrees C",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "45.000",
+          "unc": "40.000",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x02",
+        "name": "CPU1 Temp",
+        "type": "Temperature",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "55.000",
+        "unit": "degrees C",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "55.000 degrees C",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "90.000",
+          "unc": "85.000",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x03",
+        "name": "Fan1",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "4800.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "4800.000 RPM",
+        "thresholds": {
+          "lcr": "600.000",
+          "lnc": "900.000",
+          "lnr": "N/A",
+          "ucr": "N/A",
+          "unc": "N/A",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x04",
+        "name": "Fan2",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "4680.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "4680.000 RPM",
+        "thresholds": {
+          "lcr": "600.000",
+          "lnc": "900.000",
+          "lnr": "N/A",
+          "ucr": "N/A",
+          "unc": "N/A",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x05",
+        "name": "Voltage 12V",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "12.060",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "12.060 Volts",
+        "thresholds": {
+          "lcr": "10.800",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "13.200",
+          "unc": "N/A",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x06",
+        "name": "Pwr Consumption",
+        "type": "Current",
+        "entity": "power supply",
+        "threshold": true,
+        "reading": "180.000",
+        "unit": "Watts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "180.000 Watts",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "800.000",
+          "unc": "700.000",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x07",
+        "name": "PS1 Status",
+        "type": "Power Supply",
+        "entity": "power supply",
+        "threshold": false,
+        "reading": "1",
+        "unit": "discrete",
+        "status": "0x0100",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "active_states": "AA==",
+        "human": "Presence detected",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x08",
+        "name": "PS2 Status",
+        "type": "Power Supply",
+        "entity": "power supply",
+        "threshold": false,
+        "reading": "1",
+        "unit": "discrete",
+        "status": "0x0100",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "active_states": "AA==",
+        "human": "Presence detected",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x09",
+        "name": "PS Redundancy",
+        "type": "Power Supply",
+        "entity": "power supply",
+        "threshold": false,
+        "reading": "1",
+        "unit": "discrete",
+        "status": "0x0100",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "active_states": "AA==",
+        "human": "Fully Redundant",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x0a",
+        "name": "Intrusion",
+        "type": "Physical Security",
+        "entity": "system chassis",
+        "threshold": false,
+        "reading": "0",
+        "unit": "discrete",
+        "status": "0x0000",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x0b",
+        "name": "Drive 0",
+        "type": "Drive Slot / Bay",
+        "entity": "disk or disk bay",
+        "threshold": false,
+        "reading": "1",
+        "unit": "discrete",
+        "status": "0x0100",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "active_states": "AA==",
+        "human": "Drive Presence",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x0c",
+        "name": "ECC Memory",
+        "type": "Memory",
+        "entity": "memory device",
+        "threshold": false,
+        "reading": "0",
+        "unit": "discrete",
+        "status": "0x0000",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      }
+    ],
+    "sel_info": {
+      "SELVersion": 81,
+      "Entries": 0,
+      "FreeBytes": 16000,
+      "RecentAdditionTime": "1970-01-01T06:17:46Z",
+      "RecentEraseTime": "1970-01-01T06:17:49Z",
+      "OperationSupport": {
+        "Overflow": false,
+        "DeleteSEL": true,
+        "PartialAddSEL": false,
+        "ReserveSEL": true,
+        "GetSELAllocInfo": false
+      }
+    },
+    "duration_seconds": 0.342110069
+  },
+  "recorded": {
+    "errors": [
+      "sel entries: GetSELEntry failed, err: cc: 0xcb, description: Raw command failed, err: cc: 0xcb, description: ipmiRes CompletionCode (0xcb) is not normal: Requested sensor, data, or record not found"
+    ],
+    "device_id": {
+      "DeviceID": 0,
+      "ProvideDeviceSDRs": false,
+      "DeviceRevision": 3,
+      "DeviceAvailable": true,
+      "MajorFirmwareRevision": 9,
+      "MinorFirmwareRevision": 8,
+      "MajorIPMIVersion": 2,
+      "MinorIPMIVersion": 0,
+      "SupportChassis": true,
+      "SupportBridge": false,
+      "SupportIPMBEventGenerator": false,
+      "SupportIPMBEventReceiver": true,
+      "SupportFRUInventory": true,
+      "SupportSEL": true,
+      "SupportSDRRepo": true,
+      "SupportSensor": true,
+      "ManufacturerID": 4753,
+      "ProductID": 3842,
+      "AuxiliaryFirmwareRevision": "AAAAAA=="
+    },
+    "chassis_status": {
+      "PowerRestorePolicy": 0,
+      "PowerControlFault": false,
+      "PowerFault": false,
+      "InterLock": false,
+      "PowerOverload": false,
+      "PowerIsOn": true,
+      "LastPowerOnByCommand": false,
+      "LastPowerDownByPowerFault": false,
+      "LastPowerDownByPowerInterlockActivated": false,
+      "LastPowerDownByPowerOverload": false,
+      "ACFailed": false,
+      "ChassisIdentifySupported": false,
+      "ChassisIdentifyState": 0,
+      "CollingFanFault": false,
+      "DriveFault": false,
+      "FrontPanelLockoutActive": false,
+      "ChassisIntrusionActive": false,
+      "SleepButtonDisableAllowed": false,
+      "DiagnosticButtonDisableAllowed": false,
+      "ResetButtonDisableAllowed": false,
+      "PoweroffButtonDisableAllowed": false,
+      "SleepButtonDisabled": false,
+      "DiagnosticButtonDisabled": false,
+      "ResetButtonDisabled": false,
+      "PoweroffButtonDisabled": false
+    },
+    "sensors": [
+      {
+        "number": "0x01",
+        "name": "Inlet Temp",
+        "type": "Temperature",
+        "entity": "air inlet",
+        "threshold": true,
+        "reading": "24.000",
+        "unit": "degrees C",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "24.000 degrees C",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "45.000",
+          "unc": "40.000",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x02",
+        "name": "CPU1 Temp",
+        "type": "Temperature",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "55.000",
+        "unit": "degrees C",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "55.000 degrees C",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "90.000",
+          "unc": "85.000",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x03",
+        "name": "Fan1",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "4800.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "4800.000 RPM",
+        "thresholds": {
+          "lcr": "600.000",
+          "lnc": "900.000",
+          "lnr": "N/A",
+          "ucr": "N/A",
+          "unc": "N/A",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x04",
+        "name": "Fan2",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "4680.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "4680.000 RPM",
+        "thresholds": {
+          "lcr": "600.000",
+          "lnc": "900.000",
+          "lnr": "N/A",
+          "ucr": "N/A",
+          "unc": "N/A",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x05",
+        "name": "Voltage 12V",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "12.060",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "12.060 Volts",
+        "thresholds": {
+          "lcr": "10.800",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "13.200",
+          "unc": "N/A",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x06",
+        "name": "Pwr Consumption",
+        "type": "Current",
+        "entity": "power supply",
+        "threshold": true,
+        "reading": "180.000",
+        "unit": "Watts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "180.000 Watts",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "800.000",
+          "unc": "700.000",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x07",
+        "name": "PS1 Status",
+        "type": "Power Supply",
+        "entity": "power supply",
+        "threshold": false,
+        "reading": "1",
+        "unit": "discrete",
+        "status": "0x0100",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "active_states": "AA==",
+        "human": "Presence detected",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x08",
+        "name": "PS2 Status",
+        "type": "Power Supply",
+        "entity": "power supply",
+        "threshold": false,
+        "reading": "1",
+        "unit": "discrete",
+        "status": "0x0100",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "active_states": "AA==",
+        "human": "Presence detected",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x09",
+        "name": "PS Redundancy",
+        "type": "Power Supply",
+        "entity": "power supply",
+        "threshold": false,
+        "reading": "1",
+        "unit": "discrete",
+        "status": "0x0100",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "active_states": "AA==",
+        "human": "Fully Redundant",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x0a",
+        "name": "Intrusion",
+        "type": "Physical Security",
+        "entity": "system chassis",
+        "threshold": false,
+        "reading": "0",
+        "unit": "discrete",
+        "status": "0x0000",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x0b",
+        "name": "Drive 0",
+        "type": "Drive Slot / Bay",
+        "entity": "disk or disk bay",
+        "threshold": false,
+        "reading": "1",
+        "unit": "discrete",
+        "status": "0x0100",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "active_states": "AA==",
+        "human": "Drive Presence",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x0c",
+        "name": "ECC Memory",
+        "type": "Memory",
+        "entity": "memory device",
+        "threshold": false,
+        "reading": "0",
+        "unit": "discrete",
+        "status": "0x0000",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      }
+    ],
+    "sel_info": {
+      "SELVersion": 81,
+      "Entries": 0,
+      "FreeBytes": 16000,
+      "RecentAdditionTime": "1970-01-01T06:17:46Z",
+      "RecentEraseTime": "1970-01-01T06:17:49Z",
+      "OperationSupport": {
+        "Overflow": false,
+        "DeleteSEL": true,
+        "PartialAddSEL": false,
+        "ReserveSEL": true,
+        "GetSELAllocInfo": false
+      }
+    },
+    "duration_seconds": 25.980181877
+  },
+  "exchanges": [
+    {
+      "netfn": "0x06",
+      "cmd": "0x01",
+      "name": "Get Device ID",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "00030908029f911200020f00000000"
+    },
+    {
+      "netfn": "0x00",
+      "cmd": "0x01",
+      "name": "Get Chassis Status",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "010000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000000000ff",
+      "completion_code": "0x00",
+      "response": "0200010051121120000087000000070100886f4a8f80d88e000000000000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000020000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "000002000010",
+      "completion_code": "0x00",
+      "response": "030002005101352000013701670801010000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "bd00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "bd0002001010",
+      "completion_code": "0x00",
+      "response": "030000001818000100000100000101000000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "be00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "be0002002010",
+      "completion_code": "0x00",
+      "response": "03000000ff00002d280000000000000000ca"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "bf00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "bf000200300a",
+      "completion_code": "0x00",
+      "response": "0300496e6c65742054656d70"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "01",
+      "completion_code": "0x00",
+      "response": "18c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "01",
+      "completion_code": "0x00",
+      "response": "18000000282d00"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "01ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000030000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "000003000010",
+      "completion_code": "0x00",
+      "response": "040003005101342000020301670801010000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "c000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "c00003001010",
+      "completion_code": "0x00",
+      "response": "040000001818000100000100000101000000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "c100"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "c10003002010",
+      "completion_code": "0x00",
+      "response": "04000000ff00005a550000000000000000c9"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "c200"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "c20003003009",
+      "completion_code": "0x00",
+      "response": "0400435055312054656d70"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "02",
+      "completion_code": "0x00",
+      "response": "37c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "02",
+      "completion_code": "0x00",
+      "response": "18000000555a00"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "02ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000040000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "000004000010",
+      "completion_code": "0x00",
+      "response": "0500040051012f2000031d01670804010000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "c300"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "c30004001010",
+      "completion_code": "0x00",
+      "response": "050000000303001200003c00000101000000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "c400"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "c40004002010",
+      "completion_code": "0x00",
+      "response": "05000000ff000000000000000000000000c4"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "c500"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "c50004003004",
+      "completion_code": "0x00",
+      "response": "050046616e31"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "03",
+      "completion_code": "0x00",
+      "response": "50c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "03",
+      "completion_code": "0x00",
+      "response": "030f0a00000000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "03ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000050000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "000005000010",
+      "completion_code": "0x00",
+      "response": "0600050051012f2000041d02670804010000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "c600"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "c60005001010",
+      "completion_code": "0x00",
+      "response": "060000000303001200003c00000101000000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "c700"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "c70005002010",
+      "completion_code": "0x00",
+      "response": "06000000ff000000000000000000000000c4"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "c800"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "c80005003004",
+      "completion_code": "0x00",
+      "response": "060046616e32"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "04",
+      "completion_code": "0x00",
+      "response": "4ec00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "04",
+      "completion_code": "0x00",
+      "response": "030f0a00000000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "04ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000060000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "000006000010",
+      "completion_code": "0x00",
+      "response": "070006005101362000050701670802010000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "c900"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "c90006001010",
+      "completion_code": "0x00",
+      "response": "070000001212000400000600000101e00000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "ca00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "ca0006002010",
+      "completion_code": "0x00",
+      "response": "07000000ff0000dc000000000000000000cb"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "cb00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "cb000600300b",
+      "completion_code": "0x00",
+      "response": "0700566f6c7461676520313256"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "05",
+      "completion_code": "0x00",
+      "response": "c9c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "05",
+      "completion_code": "0x00",
+      "response": "1200b40000dc00"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "05ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000070000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "000007000010",
+      "completion_code": "0x00",
+      "response": "0800070051013a2000060a01670803010000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "cc00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "cc0007001010",
+      "completion_code": "0x00",
+      "response": "080000001818000600000400000101000000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "cd00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "cd0007002010",
+      "completion_code": "0x00",
+      "response": "08000000ff0000c8af0000000000000000cf"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "ce00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "ce000700300f",
+      "completion_code": "0x00",
+      "response": "080050777220436f6e73756d7074696f6e"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "06",
+      "completion_code": "0x00",
+      "response": "2dc00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "06",
+      "completion_code": "0x00",
+      "response": "18000000afc800"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "06ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000080000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "000008000010",
+      "completion_code": "0x00",
+      "response": "090008005102252000070a016700086f0b00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "cf00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "cf0008001010",
+      "completion_code": "0x00",
+      "response": "09000b000b00c000000000000000000000ca"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "d000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "d0000800200a",
+      "completion_code": "0x00",
+      "response": "090050533120537461747573"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "07",
+      "completion_code": "0x00",
+      "response": "01c00100"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "07",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000090000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "000009000010",
+      "completion_code": "0x00",
+      "response": "0a0009005102252000080a026700086f0b00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "d100"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "d10009001010",
+      "completion_code": "0x00",
+      "response": "0a000b000b00c000000000000000000000ca"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "d200"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "d2000900200a",
+      "completion_code": "0x00",
+      "response": "0a0050533220537461747573"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "08",
+      "completion_code": "0x00",
+      "response": "01c00100"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "08",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000a0000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000a000010",
+      "completion_code": "0x00",
+      "response": "0b000a005102282000090a036700080b0700"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "d300"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "d3000a001010",
+      "completion_code": "0x00",
+      "response": "0b0007000700c000000000000000000000cd"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "d400"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "d4000a00200d",
+      "completion_code": "0x00",
+      "response": "0b00505320526564756e64616e6379"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "09",
+      "completion_code": "0x00",
+      "response": "01c00100"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "09",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000b0000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000b000010",
+      "completion_code": "0x00",
+      "response": "0c000b0051022420000a17016700056f0100"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "d500"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "d5000b001010",
+      "completion_code": "0x00",
+      "response": "0c0001000100c000000000000000000000c9"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "d600"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "d6000b002009",
+      "completion_code": "0x00",
+      "response": "0c00496e74727573696f6e"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "0a",
+      "completion_code": "0x00",
+      "response": "00c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "0a",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000c0000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000c000010",
+      "completion_code": "0x00",
+      "response": "0d000c0051022220000b040167000d6f8300"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "d700"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "d7000c001010",
+      "completion_code": "0x00",
+      "response": "0d0083008300c000000000000000000000c7"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "d800"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "d8000c002007",
+      "completion_code": "0x00",
+      "response": "0d0044726976652030"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "0b",
+      "completion_code": "0x00",
+      "response": "01c00100"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "0b",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000d0000ff",
+      "completion_code": "0xca",
+      "response": "",
+      "error": "cc: 0xca, description: ipmiRes CompletionCode (0xca) is not normal: Cannot return number of requested data bytes"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000d000010",
+      "completion_code": "0x00",
+      "response": "ffff0d0051022520000c200167000c6f0300"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "d900"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "d9000d001010",
+      "completion_code": "0x00",
+      "response": "ffff03000300c000000000000000000000ca"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x22",
+      "name": "Reserve SDR Repository",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "da00"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "da000d00200a",
+      "completion_code": "0x00",
+      "response": "ffff454343204d656d6f7279"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "0c",
+      "completion_code": "0x00",
+      "response": "00c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "0c",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "01",
+      "completion_code": "0x00",
+      "response": "18c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "01",
+      "completion_code": "0x00",
+      "response": "18000000282d00"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "01ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "02",
+      "completion_code": "0x00",
+      "response": "37c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "02",
+      "completion_code": "0x00",
+      "response": "18000000555a00"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "02ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "03",
+      "completion_code": "0x00",
+      "response": "50c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "03",
+      "completion_code": "0x00",
+      "response": "030f0a00000000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "03ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "04",
+      "completion_code": "0x00",
+      "response": "4ec00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "04",
+      "completion_code": "0x00",
+      "response": "030f0a00000000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "04ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "05",
+      "completion_code": "0x00",
+      "response": "c9c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "05",
+      "completion_code": "0x00",
+      "response": "1200b40000dc00"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "05ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "06",
+      "completion_code": "0x00",
+      "response": "2dc00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "06",
+      "completion_code": "0x00",
+      "response": "18000000afc800"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "06ff",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "07",
+      "completion_code": "0x00",
+      "response": "01c00100"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "07",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "08",
+      "completion_code": "0x00",
+      "response": "01c00100"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "08",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "09",
+      "completion_code": "0x00",
+      "response": "01c00100"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "09",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "0a",
+      "completion_code": "0x00",
+      "response": "00c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "0a",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "0b",
+      "completion_code": "0x00",
+      "response": "01c00100"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "0b",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "0c",
+      "completion_code": "0x00",
+      "response": "00c00000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "0c",
+      "completion_code": "0xc1",
+      "response": "",
+      "error": "cc: 0xc1, description: ipmiRes CompletionCode (0xc1) is not normal: Invalid command"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x40",
+      "name": "Get SEL Info",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "510000803e8a5800008d5800000a"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x40",
+      "name": "Get SEL Info",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "510000803e8a5800008d5800000a"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x40",
+      "name": "Get SEL Info",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "510000803e8a5800008d5800000a"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x43",
+      "name": "Get SEL Entry",
+      "request": "0000000000ff",
+      "completion_code": "0xcb",
+      "response": "",
+      "error": "cc: 0xcb, description: ipmiRes CompletionCode (0xcb) is not normal: Requested sensor, data, or record not found"
+    }
+  ]
+}

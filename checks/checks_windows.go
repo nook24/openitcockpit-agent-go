@@ -16,5 +16,16 @@ func getPlatformChecks() []Check {
 		&CheckWinService{},
 		&CheckWindowsEventLog{},
 		&CheckNtp{},
+		&CheckLogfile{},
+		&CheckCertificate{},
+		&CheckFile{},
+		&CheckHTTP{},
+		&CheckRedfish{},
+		&CheckSmart{},
+		&CheckSecurity{},
+		&CheckWindowsScheduledTasks{},
+		&CheckWindowsPerfCounter{},
+		&CheckNetworkPorts{},
+		&CheckIpmi{},
 	}
 }

@@ -1052,9 +1052,18 @@ func TestRpmManager_getInstalledPackagesWithCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting installed packages: %v", err)
 	}
+	if strings.TrimSpace(output) == "" {
+		// e.g. the rpm command of Debian or Ubuntu without packages in the rpm database
+		t.Skip("Skipping test; the rpm database contains no packages.")
+	}
 
-	if !strings.HasPrefix(output, "gpg-pubkey") {
-		t.Errorf("Unexpected output, got: %s", output)
+	// The order of the packages depends on the system, so the output has to be parsable
+	packages, err := rpm.parseRpmOutput(output)
+	if err != nil {
+		t.Fatalf("Error parsing the rpm output: %v", err)
+	}
+	if len(packages) == 0 {
+		t.Errorf("No packages found in the rpm output: %s", output)
 	}
 }
 

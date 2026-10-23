@@ -248,8 +248,9 @@ func (z ZypperManager) CollectPackageInfo(ctx context.Context, limitDescriptionL
 	if enableUpdateCheck {
 		upgradablePackages, err = z.ListUpgradablePackages(ctx)
 		if err != nil {
+			// The installed packages are reported, even if the updates can not be determined
+			// (e.g. a repository is not reachable or a required tool like checkupdates is not installed)
 			result.Stats.LastError = err
-			return result, err
 		}
 		result.Stats.UpgradablePackages = int64(len(upgradablePackages))
 
@@ -280,10 +281,10 @@ func (z ZypperManager) CollectPackageInfo(ctx context.Context, limitDescriptionL
 		result.Stats.SecurityUpdates = securityUpdates
 	}
 
+	// The installed packages are reported, even if it can not be determined if a reboot is required
 	rebootRequired, err := z.RebootRequired(ctx)
 	if err != nil {
 		result.Stats.LastError = err
-		return result, err
 	}
 	result.Stats.RebootRequired = rebootRequired
 

@@ -17,5 +17,13 @@ func getPlatformChecks() []Check {
 		&CheckDocker{},
 		&CheckLaunchd{},
 		&CheckNtp{},
+		&CheckLogfile{},
+		&CheckCertificate{},
+		&CheckFile{},
+		&CheckHTTP{},
+		&CheckRedfish{},
+		&CheckSmart{},
+		&CheckSecurity{},
+		&CheckNetworkPorts{},
 	}
 }

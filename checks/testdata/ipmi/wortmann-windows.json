@@ -1,0 +1,2415 @@
+{
+  "tool": "oitc-ipmi-dump",
+  "version": "1.1",
+  "created": "2026-10-20T09:38:01+02:00",
+  "os": "windows/amd64",
+  "direct": {
+    "errors": [
+      "sel entries: GetSELEntry failed, err: cc: 0xcb, description: ipmiRes CompletionCode (0xcb) is not normal: Requested sensor, data, or record not found"
+    ],
+    "device_id": {
+      "DeviceID": 32,
+      "ProvideDeviceSDRs": true,
+      "DeviceRevision": 1,
+      "DeviceAvailable": true,
+      "MajorFirmwareRevision": 1,
+      "MinorFirmwareRevision": 0,
+      "MajorIPMIVersion": 2,
+      "MinorIPMIVersion": 0,
+      "SupportChassis": true,
+      "SupportBridge": false,
+      "SupportIPMBEventGenerator": true,
+      "SupportIPMBEventReceiver": true,
+      "SupportFRUInventory": true,
+      "SupportSEL": true,
+      "SupportSDRRepo": true,
+      "SupportSensor": true,
+      "ManufacturerID": 2623,
+      "ProductID": 4499,
+      "AuxiliaryFirmwareRevision": "BgAAAA=="
+    },
+    "chassis_status": {
+      "PowerRestorePolicy": 2,
+      "PowerControlFault": false,
+      "PowerFault": false,
+      "InterLock": false,
+      "PowerOverload": false,
+      "PowerIsOn": true,
+      "LastPowerOnByCommand": false,
+      "LastPowerDownByPowerFault": false,
+      "LastPowerDownByPowerInterlockActivated": false,
+      "LastPowerDownByPowerOverload": false,
+      "ACFailed": true,
+      "ChassisIdentifySupported": true,
+      "ChassisIdentifyState": 0,
+      "CollingFanFault": false,
+      "DriveFault": false,
+      "FrontPanelLockoutActive": false,
+      "ChassisIntrusionActive": false,
+      "SleepButtonDisableAllowed": true,
+      "DiagnosticButtonDisableAllowed": true,
+      "ResetButtonDisableAllowed": true,
+      "PoweroffButtonDisableAllowed": true,
+      "SleepButtonDisabled": false,
+      "DiagnosticButtonDisabled": false,
+      "ResetButtonDisabled": false,
+      "PoweroffButtonDisabled": false
+    },
+    "sensors": [
+      {
+        "number": "0x01",
+        "name": "CPU1 Temperature",
+        "type": "Temperature",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "48.000",
+        "unit": "degrees C",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "48.000 degrees C",
+        "thresholds": {
+          "lcr": "0.000",
+          "lnc": "0.000",
+          "lnr": "0.000",
+          "ucr": "97.000",
+          "unc": "94.000",
+          "unr": "100.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x66",
+        "name": "+VCORE1",
+        "type": "Voltage",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "0.944",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "0.944 Volts",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "1.984",
+          "unc": "1.896",
+          "unr": "2.040"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x67",
+        "name": "+VCC1P8_CPU",
+        "type": "Voltage",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "1.808",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1.808 Volts",
+        "thresholds": {
+          "lcr": "1.360",
+          "lnc": "1.440",
+          "lnr": "1.280",
+          "ucr": "2.160",
+          "unc": "2.064",
+          "unr": "2.256"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x68",
+        "name": "+VCCIN_AUX_CPU",
+        "type": "Voltage",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "1.792",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1.792 Volts",
+        "thresholds": {
+          "lcr": "1.360",
+          "lnc": "1.440",
+          "lnr": "1.280",
+          "ucr": "2.160",
+          "unc": "2.064",
+          "unr": "2.256"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x6a",
+        "name": "+VDD2",
+        "type": "Voltage",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "1.120",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1.120 Volts",
+        "thresholds": {
+          "lcr": "0.976",
+          "lnc": "1.032",
+          "lnr": "0.920",
+          "ucr": "1.320",
+          "unc": "1.264",
+          "unr": "1.376"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x70",
+        "name": "+V1P05A_CPU",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "1.048",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1.048 Volts",
+        "thresholds": {
+          "lcr": "0.912",
+          "lnc": "0.968",
+          "lnr": "0.864",
+          "ucr": "1.240",
+          "unc": "1.184",
+          "unr": "1.296"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x71",
+        "name": "+V1P05A_PCH",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "1.056",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1.056 Volts",
+        "thresholds": {
+          "lcr": "0.912",
+          "lnc": "0.968",
+          "lnr": "0.864",
+          "ucr": "1.240",
+          "unc": "1.184",
+          "unr": "1.296"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x74",
+        "name": "+12V",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "12.192",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "12.192 Volts",
+        "thresholds": {
+          "lcr": "10.176",
+          "lnc": "10.752",
+          "lnr": "9.600",
+          "ucr": "13.824",
+          "unc": "13.248",
+          "unr": "14.400"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x75",
+        "name": "+5V",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "5.120",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "5.120 Volts",
+        "thresholds": {
+          "lcr": "4.240",
+          "lnc": "4.480",
+          "lnr": "4.000",
+          "ucr": "5.760",
+          "unc": "5.520",
+          "unr": "6.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x77",
+        "name": "+5VSB",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "5.080",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "5.080 Volts",
+        "thresholds": {
+          "lcr": "4.240",
+          "lnc": "4.480",
+          "lnr": "4.000",
+          "ucr": "5.760",
+          "unc": "5.520",
+          "unr": "6.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x76",
+        "name": "+3.3V",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "3.392",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "3.392 Volts",
+        "thresholds": {
+          "lcr": "2.800",
+          "lnc": "2.976",
+          "lnr": "2.640",
+          "ucr": "3.792",
+          "unc": "3.632",
+          "unr": "3.968"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x78",
+        "name": "+3.3VSB",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "3.376",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "3.376 Volts",
+        "thresholds": {
+          "lcr": "2.800",
+          "lnc": "2.976",
+          "lnr": "2.640",
+          "ucr": "3.792",
+          "unc": "3.632",
+          "unr": "3.968"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x79",
+        "name": "+VBAT",
+        "type": "Voltage",
+        "entity": "battery",
+        "threshold": true,
+        "reading": "3.168",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "3.168 Volts",
+        "thresholds": {
+          "lcr": "2.560",
+          "lnc": "2.704",
+          "lnr": "2.400",
+          "ucr": "3.440",
+          "unc": "3.296",
+          "unr": "3.600"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x89",
+        "name": "CPU_FAN1",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "1100.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1100.000 RPM",
+        "thresholds": {
+          "lcr": "200.000",
+          "lnc": "200.000",
+          "lnr": "0.000",
+          "ucr": "23700.000",
+          "unc": "22500.000",
+          "unr": "25000.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x8b",
+        "name": "FRNT_FAN1",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "N/A",
+        "unit": "RPM",
+        "status": "N/A",
+        "reading_valid": true,
+        "scanning_disabled": true,
+        "not_present": false,
+        "human": "N/A",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "N/A",
+          "unc": "N/A",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x8c",
+        "name": "FRNT_FAN2",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "1400.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1400.000 RPM",
+        "thresholds": {
+          "lcr": "200.000",
+          "lnc": "200.000",
+          "lnr": "0.000",
+          "ucr": "23700.000",
+          "unc": "22500.000",
+          "unr": "25000.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x8d",
+        "name": "FRNT_FAN3",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "1500.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1500.000 RPM",
+        "thresholds": {
+          "lcr": "200.000",
+          "lnc": "200.000",
+          "lnr": "0.000",
+          "ucr": "23700.000",
+          "unc": "22500.000",
+          "unr": "25000.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x8e",
+        "name": "FRNT_FAN4",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "1400.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1400.000 RPM",
+        "thresholds": {
+          "lcr": "200.000",
+          "lnc": "200.000",
+          "lnr": "0.000",
+          "ucr": "23700.000",
+          "unc": "22500.000",
+          "unr": "25000.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x9e",
+        "name": "REAR_FAN1",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "N/A",
+        "unit": "RPM",
+        "status": "N/A",
+        "reading_valid": true,
+        "scanning_disabled": true,
+        "not_present": false,
+        "human": "N/A",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "N/A",
+          "unc": "N/A",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0xd1",
+        "name": "CPU1_ECC1",
+        "type": "Memory",
+        "entity": "memory module",
+        "threshold": false,
+        "reading": "0",
+        "unit": "unspecified",
+        "status": "0x4080",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "active_states": "Bg==",
+        "human": "Presence detected",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0xfd",
+        "name": "CPU_CATERR",
+        "type": "Processor",
+        "entity": "processor",
+        "threshold": false,
+        "reading": "0",
+        "unit": "unspecified",
+        "status": "0x0080",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0xdb",
+        "name": "Memory_Train_ERR",
+        "type": "unknown",
+        "entity": "memory module",
+        "threshold": false,
+        "reading": "0",
+        "unit": "unspecified",
+        "status": "0x0080",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0xfe",
+        "name": "Watchdog2",
+        "type": "Watchdog2",
+        "entity": "Operating System",
+        "threshold": false,
+        "reading": "0",
+        "unit": "unspecified",
+        "status": "0x0080",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      }
+    ],
+    "sel_info": {
+      "SELVersion": 81,
+      "Entries": 0,
+      "FreeBytes": 65502,
+      "RecentAdditionTime": "1970-01-01T01:00:00+01:00",
+      "RecentEraseTime": "2025-06-16T16:34:02+02:00",
+      "OperationSupport": {
+        "Overflow": false,
+        "DeleteSEL": true,
+        "PartialAddSEL": true,
+        "ReserveSEL": true,
+        "GetSELAllocInfo": true
+      }
+    },
+    "duration_seconds": 1.7010565
+  },
+  "recorded": {
+    "errors": [
+      "sel entries: GetSELEntry failed, err: cc: 0xcb, description: Raw command failed, err: cc: 0xcb, description: ipmiRes CompletionCode (0xcb) is not normal: Requested sensor, data, or record not found"
+    ],
+    "device_id": {
+      "DeviceID": 32,
+      "ProvideDeviceSDRs": true,
+      "DeviceRevision": 1,
+      "DeviceAvailable": true,
+      "MajorFirmwareRevision": 1,
+      "MinorFirmwareRevision": 0,
+      "MajorIPMIVersion": 2,
+      "MinorIPMIVersion": 0,
+      "SupportChassis": true,
+      "SupportBridge": false,
+      "SupportIPMBEventGenerator": true,
+      "SupportIPMBEventReceiver": true,
+      "SupportFRUInventory": true,
+      "SupportSEL": true,
+      "SupportSDRRepo": true,
+      "SupportSensor": true,
+      "ManufacturerID": 2623,
+      "ProductID": 4499,
+      "AuxiliaryFirmwareRevision": "BgAAAA=="
+    },
+    "chassis_status": {
+      "PowerRestorePolicy": 2,
+      "PowerControlFault": false,
+      "PowerFault": false,
+      "InterLock": false,
+      "PowerOverload": false,
+      "PowerIsOn": true,
+      "LastPowerOnByCommand": false,
+      "LastPowerDownByPowerFault": false,
+      "LastPowerDownByPowerInterlockActivated": false,
+      "LastPowerDownByPowerOverload": false,
+      "ACFailed": true,
+      "ChassisIdentifySupported": true,
+      "ChassisIdentifyState": 0,
+      "CollingFanFault": false,
+      "DriveFault": false,
+      "FrontPanelLockoutActive": false,
+      "ChassisIntrusionActive": false,
+      "SleepButtonDisableAllowed": true,
+      "DiagnosticButtonDisableAllowed": true,
+      "ResetButtonDisableAllowed": true,
+      "PoweroffButtonDisableAllowed": true,
+      "SleepButtonDisabled": false,
+      "DiagnosticButtonDisabled": false,
+      "ResetButtonDisabled": false,
+      "PoweroffButtonDisabled": false
+    },
+    "sensors": [
+      {
+        "number": "0x01",
+        "name": "CPU1 Temperature",
+        "type": "Temperature",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "49.000",
+        "unit": "degrees C",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "49.000 degrees C",
+        "thresholds": {
+          "lcr": "0.000",
+          "lnc": "0.000",
+          "lnr": "0.000",
+          "ucr": "97.000",
+          "unc": "94.000",
+          "unr": "100.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x66",
+        "name": "+VCORE1",
+        "type": "Voltage",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "0.928",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "0.928 Volts",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "1.984",
+          "unc": "1.896",
+          "unr": "2.040"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x67",
+        "name": "+VCC1P8_CPU",
+        "type": "Voltage",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "1.808",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1.808 Volts",
+        "thresholds": {
+          "lcr": "1.360",
+          "lnc": "1.440",
+          "lnr": "1.280",
+          "ucr": "2.160",
+          "unc": "2.064",
+          "unr": "2.256"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x68",
+        "name": "+VCCIN_AUX_CPU",
+        "type": "Voltage",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "1.792",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1.792 Volts",
+        "thresholds": {
+          "lcr": "1.360",
+          "lnc": "1.440",
+          "lnr": "1.280",
+          "ucr": "2.160",
+          "unc": "2.064",
+          "unr": "2.256"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x6a",
+        "name": "+VDD2",
+        "type": "Voltage",
+        "entity": "processor",
+        "threshold": true,
+        "reading": "1.120",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1.120 Volts",
+        "thresholds": {
+          "lcr": "0.976",
+          "lnc": "1.032",
+          "lnr": "0.920",
+          "ucr": "1.320",
+          "unc": "1.264",
+          "unr": "1.376"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x70",
+        "name": "+V1P05A_CPU",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "1.048",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1.048 Volts",
+        "thresholds": {
+          "lcr": "0.912",
+          "lnc": "0.968",
+          "lnr": "0.864",
+          "ucr": "1.240",
+          "unc": "1.184",
+          "unr": "1.296"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x71",
+        "name": "+V1P05A_PCH",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "1.056",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1.056 Volts",
+        "thresholds": {
+          "lcr": "0.912",
+          "lnc": "0.968",
+          "lnr": "0.864",
+          "ucr": "1.240",
+          "unc": "1.184",
+          "unr": "1.296"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x74",
+        "name": "+12V",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "12.192",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "12.192 Volts",
+        "thresholds": {
+          "lcr": "10.176",
+          "lnc": "10.752",
+          "lnr": "9.600",
+          "ucr": "13.824",
+          "unc": "13.248",
+          "unr": "14.400"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x75",
+        "name": "+5V",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "5.120",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "5.120 Volts",
+        "thresholds": {
+          "lcr": "4.240",
+          "lnc": "4.480",
+          "lnr": "4.000",
+          "ucr": "5.760",
+          "unc": "5.520",
+          "unr": "6.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x77",
+        "name": "+5VSB",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "5.080",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "5.080 Volts",
+        "thresholds": {
+          "lcr": "4.240",
+          "lnc": "4.480",
+          "lnr": "4.000",
+          "ucr": "5.760",
+          "unc": "5.520",
+          "unr": "6.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x76",
+        "name": "+3.3V",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "3.392",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "3.392 Volts",
+        "thresholds": {
+          "lcr": "2.800",
+          "lnc": "2.976",
+          "lnr": "2.640",
+          "ucr": "3.792",
+          "unc": "3.632",
+          "unr": "3.968"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x78",
+        "name": "+3.3VSB",
+        "type": "Voltage",
+        "entity": "system board",
+        "threshold": true,
+        "reading": "3.376",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "3.376 Volts",
+        "thresholds": {
+          "lcr": "2.800",
+          "lnc": "2.976",
+          "lnr": "2.640",
+          "ucr": "3.792",
+          "unc": "3.632",
+          "unr": "3.968"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x79",
+        "name": "+VBAT",
+        "type": "Voltage",
+        "entity": "battery",
+        "threshold": true,
+        "reading": "3.168",
+        "unit": "Volts",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "3.168 Volts",
+        "thresholds": {
+          "lcr": "2.560",
+          "lnc": "2.704",
+          "lnr": "2.400",
+          "ucr": "3.440",
+          "unc": "3.296",
+          "unr": "3.600"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x89",
+        "name": "CPU_FAN1",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "1100.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1100.000 RPM",
+        "thresholds": {
+          "lcr": "200.000",
+          "lnc": "200.000",
+          "lnr": "0.000",
+          "ucr": "23700.000",
+          "unc": "22500.000",
+          "unr": "25000.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x8b",
+        "name": "FRNT_FAN1",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "N/A",
+        "unit": "RPM",
+        "status": "N/A",
+        "reading_valid": true,
+        "scanning_disabled": true,
+        "not_present": false,
+        "human": "N/A",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "N/A",
+          "unc": "N/A",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x8c",
+        "name": "FRNT_FAN2",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "1400.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1400.000 RPM",
+        "thresholds": {
+          "lcr": "200.000",
+          "lnc": "200.000",
+          "lnr": "0.000",
+          "ucr": "23700.000",
+          "unc": "22500.000",
+          "unr": "25000.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x8d",
+        "name": "FRNT_FAN3",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "1500.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1500.000 RPM",
+        "thresholds": {
+          "lcr": "200.000",
+          "lnc": "200.000",
+          "lnr": "0.000",
+          "ucr": "23700.000",
+          "unc": "22500.000",
+          "unr": "25000.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x8e",
+        "name": "FRNT_FAN4",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "1400.000",
+        "unit": "RPM",
+        "status": "ok",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "1400.000 RPM",
+        "thresholds": {
+          "lcr": "200.000",
+          "lnc": "200.000",
+          "lnr": "0.000",
+          "ucr": "23700.000",
+          "unc": "22500.000",
+          "unr": "25000.000"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0x9e",
+        "name": "REAR_FAN1",
+        "type": "Fan",
+        "entity": "fan / cooling device",
+        "threshold": true,
+        "reading": "N/A",
+        "unit": "RPM",
+        "status": "N/A",
+        "reading_valid": true,
+        "scanning_disabled": true,
+        "not_present": false,
+        "human": "N/A",
+        "thresholds": {
+          "lcr": "N/A",
+          "lnc": "N/A",
+          "lnr": "N/A",
+          "ucr": "N/A",
+          "unc": "N/A",
+          "unr": "N/A"
+        },
+        "sdr_type": "Full",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0xd1",
+        "name": "CPU1_ECC1",
+        "type": "Memory",
+        "entity": "memory module",
+        "threshold": false,
+        "reading": "0",
+        "unit": "unspecified",
+        "status": "0x4080",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "active_states": "Bg==",
+        "human": "Presence detected",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0xfd",
+        "name": "CPU_CATERR",
+        "type": "Processor",
+        "entity": "processor",
+        "threshold": false,
+        "reading": "0",
+        "unit": "unspecified",
+        "status": "0x0080",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0xdb",
+        "name": "Memory_Train_ERR",
+        "type": "unknown",
+        "entity": "memory module",
+        "threshold": false,
+        "reading": "0",
+        "unit": "unspecified",
+        "status": "0x0080",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      },
+      {
+        "number": "0xfe",
+        "name": "Watchdog2",
+        "type": "Watchdog2",
+        "entity": "Operating System",
+        "threshold": false,
+        "reading": "0",
+        "unit": "unspecified",
+        "status": "0x0080",
+        "reading_valid": true,
+        "scanning_disabled": false,
+        "not_present": false,
+        "human": "",
+        "sdr_type": "Compact",
+        "generator_id": "0x0020"
+      }
+    ],
+    "sel_info": {
+      "SELVersion": 81,
+      "Entries": 0,
+      "FreeBytes": 65502,
+      "RecentAdditionTime": "1970-01-01T01:00:00+01:00",
+      "RecentEraseTime": "2025-06-16T16:34:02+02:00",
+      "OperationSupport": {
+        "Overflow": false,
+        "DeleteSEL": true,
+        "PartialAddSEL": true,
+        "ReserveSEL": true,
+        "GetSELAllocInfo": true
+      }
+    },
+    "duration_seconds": 17.5335724
+  },
+  "exchanges": [
+    {
+      "netfn": "0x06",
+      "cmd": "0x01",
+      "name": "Get Device ID",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "2081010002bf3f0a00931106000000"
+    },
+    {
+      "netfn": "0x00",
+      "cmd": "0x01",
+      "name": "Get Chassis Status",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "410140f0"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000000000ff",
+      "completion_code": "0x00",
+      "response": "02000100511212200000ff0000002e0000c741535432363030"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000020000ff",
+      "completion_code": "0x00",
+      "response": "0300020051111220008600000b02070100c753454550524f4d"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000030000ff",
+      "completion_code": "0x00",
+      "response": "0400030051013b20000103007f680101807280723f3f8001000001000000000000284f197f8064615e0000000101000000d0435055312054656d7065726174757265"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "01",
+      "completion_code": "0x00",
+      "response": "2ec0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "01",
+      "completion_code": "0x00",
+      "response": "3f0000005e6164"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "01ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000040000ff",
+      "completion_code": "0x00",
+      "response": "0500040051013220006603007f680201857285723838000400000800000000d0004fff22ff00fff8ed0000000101000000c72b56434f524531"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "66",
+      "completion_code": "0x00",
+      "response": "74c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "66",
+      "completion_code": "0x00",
+      "response": "38000000edf8ff"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "66ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000050000ff",
+      "completion_code": "0x00",
+      "response": "0600050051013620006703007f680201857285723f3f000400001000000000d0004fff22ff008d878150555a0101000000cb2b5643433150385f435055"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "67",
+      "completion_code": "0x00",
+      "response": "71c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "67",
+      "completion_code": "0x00",
+      "response": "3f5a555081878d"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "67ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000060000ff",
+      "completion_code": "0x00",
+      "response": "0700060051013920006803007f680201857285723f3f000400001000000000d0004fff22ff008d878150555a0101000000ce2b564343494e5f4155585f435055"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "68",
+      "completion_code": "0x00",
+      "response": "70c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "68",
+      "completion_code": "0x00",
+      "response": "3f5a555081878d"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "68ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000070000ff",
+      "completion_code": "0x00",
+      "response": "0800070051013020006a03007f680201857285723f3f000400000800000000d0004fff22ff00aca59e737a810101000000c52b56444432"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "6a",
+      "completion_code": "0x00",
+      "response": "8cc0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "6a",
+      "completion_code": "0x00",
+      "response": "3f817a739ea5ac"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "6aff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000080000ff",
+      "completion_code": "0x00",
+      "response": "0900080051013620007007007f680201857285723f3f000400000800000000d0004fff22ff00a29b946c72790101000000cb2b5631503035415f435055"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "70",
+      "completion_code": "0x00",
+      "response": "83c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "70",
+      "completion_code": "0x00",
+      "response": "3f79726c949ba2"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "70ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000090000ff",
+      "completion_code": "0x00",
+      "response": "0a00090051013620007107007f680201857285723f3f000400000800000000d0004fff22ff00a29b946c72790101000000cb2b5631503035415f504348"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "71",
+      "completion_code": "0x00",
+      "response": "84c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "71",
+      "completion_code": "0x00",
+      "response": "3f79726c949ba2"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "71ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000a0000ff",
+      "completion_code": "0x00",
+      "response": "0b000a0051012f20007407007f680201857285723f3f000400006000000000d0004fff22ff0096908a646a700101000000c42b313256"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "74",
+      "completion_code": "0x00",
+      "response": "7fc0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "74",
+      "completion_code": "0x00",
+      "response": "3f706a648a9096"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "74ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000b0000ff",
+      "completion_code": "0x00",
+      "response": "0c000b0051012e20007507007f680201857285723f3f000400002800000000d0004fff22ff0096908a646a700101000000c32b3556"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "75",
+      "completion_code": "0x00",
+      "response": "80c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "75",
+      "completion_code": "0x00",
+      "response": "3f706a648a9096"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "75ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000c0000ff",
+      "completion_code": "0x00",
+      "response": "0d000c0051013020007707007f680201857285723f3f000400002800000000d0004fff22ff0096908a646a700101000000c52b35565342"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "77",
+      "completion_code": "0x00",
+      "response": "7fc0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "77",
+      "completion_code": "0x00",
+      "response": "3f706a648a9096"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "77ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000d0000ff",
+      "completion_code": "0x00",
+      "response": "0e000d0051013020007607007f680201857285723f3f000400001000000000d0004fff22ff00f8ede3a5afba0101000000c52b332e3356"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "76",
+      "completion_code": "0x00",
+      "response": "d4c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "76",
+      "completion_code": "0x00",
+      "response": "3fbaafa5e3edf8"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "76ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000e0000ff",
+      "completion_code": "0x00",
+      "response": "0f000e0051013220007807007f680201857285723f3f000400001000000000d0004fff22ff00f8ede3a5afba0101000000c72b332e33565342"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "78",
+      "completion_code": "0x00",
+      "response": "d3c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "78",
+      "completion_code": "0x00",
+      "response": "3fbaafa5e3edf8"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "78ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "00000f0000ff",
+      "completion_code": "0x00",
+      "response": "10000f0051013020007928007f680201857285723f3f000400001000000000d0004fff22ff00e1d7ce96a0a90101000000c52b56424154"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "79",
+      "completion_code": "0x00",
+      "response": "c6c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "79",
+      "completion_code": "0x00",
+      "response": "3fa9a096ced7e1"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "79ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000100000ff",
+      "completion_code": "0x00",
+      "response": "110010005101332000891d0077680401057005703f3f001200006400000000000038e00dff00faede10002020101000000c84350555f46414e31"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "89",
+      "completion_code": "0x00",
+      "response": "0bc0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "89",
+      "completion_code": "0x00",
+      "response": "3f020200e1edfa"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "89ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000110000ff",
+      "completion_code": "0x00",
+      "response": "1200110051013420008b1d0077680401057005703f3f001200006400000000000038e00dff00faede10002020101000000c946524e545f46414e31"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "8b",
+      "completion_code": "0x00",
+      "response": "0000c700"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000120000ff",
+      "completion_code": "0x00",
+      "response": "1300120051013420008c1d0077680401057005703f3f001200006400000000000038e00dff00faede10002020101000000c946524e545f46414e32"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "8c",
+      "completion_code": "0x00",
+      "response": "0ec0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "8c",
+      "completion_code": "0x00",
+      "response": "3f020200e1edfa"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "8cff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000130000ff",
+      "completion_code": "0x00",
+      "response": "1400130051013420008d1d0077680401057005703f3f001200006400000000000038e00dff00faede10002020101000000c946524e545f46414e33"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "8d",
+      "completion_code": "0x00",
+      "response": "0fc0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "8d",
+      "completion_code": "0x00",
+      "response": "3f020200e1edfa"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "8dff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000140000ff",
+      "completion_code": "0x00",
+      "response": "1500140051013420008e1d0077680401057005703f3f001200006400000000000038e00dff00faede10002020101000000c946524e545f46414e34"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "8e",
+      "completion_code": "0x00",
+      "response": "0ec0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "8e",
+      "completion_code": "0x00",
+      "response": "3f020200e1edfa"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "8eff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000150000ff",
+      "completion_code": "0x00",
+      "response": "1600150051013420009e1d0077680401057005703f3f001200006400000000000038e00dff00faede10002020101000000c9524541525f46414e31"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "9e",
+      "completion_code": "0x00",
+      "response": "0000c700"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000160000ff",
+      "completion_code": "0x00",
+      "response": "170016005102242000d1080077400c6fff000000ff000000000100000000000000c9435055315f45434331"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "d1",
+      "completion_code": "0x00",
+      "response": "00c04080"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "d1",
+      "completion_code": "0x00",
+      "response": "c040000000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000170000ff",
+      "completion_code": "0x00",
+      "response": "180017005102252000fd03007740076fff000000ff000000000100000000000000ca4350555f434154455252"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "fd",
+      "completion_code": "0x00",
+      "response": "00c00080"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "fd",
+      "completion_code": "0x00",
+      "response": "c000000000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000180000ff",
+      "completion_code": "0x00",
+      "response": "1900180051022b2000db08007740c56f00000000ff000000000100000000000000d04d656d6f72795f547261696e5f455252"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "db",
+      "completion_code": "0x00",
+      "response": "00c00080"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "db",
+      "completion_code": "0x00",
+      "response": "c000000000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x23",
+      "name": "Get SDR",
+      "request": "0000190000ff",
+      "completion_code": "0x00",
+      "response": "ffff19005102242000fe23006340236f0f0000000f000000000181000000000000c95761746368646f6732"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "fe",
+      "completion_code": "0x00",
+      "response": "00c00080"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "fe",
+      "completion_code": "0x00",
+      "response": "c000000000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "01",
+      "completion_code": "0x00",
+      "response": "31c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "01",
+      "completion_code": "0x00",
+      "response": "3f0000005e6164"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "01ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "66",
+      "completion_code": "0x00",
+      "response": "74c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "66",
+      "completion_code": "0x00",
+      "response": "38000000edf8ff"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "66ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "67",
+      "completion_code": "0x00",
+      "response": "71c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "67",
+      "completion_code": "0x00",
+      "response": "3f5a555081878d"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "67ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "68",
+      "completion_code": "0x00",
+      "response": "70c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "68",
+      "completion_code": "0x00",
+      "response": "3f5a555081878d"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "68ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "6a",
+      "completion_code": "0x00",
+      "response": "8cc0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "6a",
+      "completion_code": "0x00",
+      "response": "3f817a739ea5ac"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "6aff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "70",
+      "completion_code": "0x00",
+      "response": "83c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "70",
+      "completion_code": "0x00",
+      "response": "3f79726c949ba2"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "70ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "71",
+      "completion_code": "0x00",
+      "response": "84c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "71",
+      "completion_code": "0x00",
+      "response": "3f79726c949ba2"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "71ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "74",
+      "completion_code": "0x00",
+      "response": "7fc0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "74",
+      "completion_code": "0x00",
+      "response": "3f706a648a9096"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "74ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "75",
+      "completion_code": "0x00",
+      "response": "80c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "75",
+      "completion_code": "0x00",
+      "response": "3f706a648a9096"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "75ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "77",
+      "completion_code": "0x00",
+      "response": "7fc0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "77",
+      "completion_code": "0x00",
+      "response": "3f706a648a9096"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "77ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "76",
+      "completion_code": "0x00",
+      "response": "d4c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "76",
+      "completion_code": "0x00",
+      "response": "3fbaafa5e3edf8"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "76ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "78",
+      "completion_code": "0x00",
+      "response": "d3c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "78",
+      "completion_code": "0x00",
+      "response": "3fbaafa5e3edf8"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "78ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "79",
+      "completion_code": "0x00",
+      "response": "c6c0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "79",
+      "completion_code": "0x00",
+      "response": "3fa9a096ced7e1"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "79ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "89",
+      "completion_code": "0x00",
+      "response": "0bc0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "89",
+      "completion_code": "0x00",
+      "response": "3f020200e1edfa"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "89ff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "8b",
+      "completion_code": "0x00",
+      "response": "0000c700"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "8c",
+      "completion_code": "0x00",
+      "response": "0ec0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "8c",
+      "completion_code": "0x00",
+      "response": "3f020200e1edfa"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "8cff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "8d",
+      "completion_code": "0x00",
+      "response": "0fc0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "8d",
+      "completion_code": "0x00",
+      "response": "3f020200e1edfa"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "8dff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "8e",
+      "completion_code": "0x00",
+      "response": "0ec0c000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x27",
+      "name": "Get Sensor Thresholds",
+      "request": "8e",
+      "completion_code": "0x00",
+      "response": "3f020200e1edfa"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x25",
+      "name": "Get Sensor Hysteresis",
+      "request": "8eff",
+      "completion_code": "0x00",
+      "response": "0101"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "9e",
+      "completion_code": "0x00",
+      "response": "0000c700"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "d1",
+      "completion_code": "0x00",
+      "response": "00c04080"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "d1",
+      "completion_code": "0x00",
+      "response": "c040000000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "fd",
+      "completion_code": "0x00",
+      "response": "00c00080"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "fd",
+      "completion_code": "0x00",
+      "response": "c000000000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "db",
+      "completion_code": "0x00",
+      "response": "00c00080"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "db",
+      "completion_code": "0x00",
+      "response": "c000000000"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2d",
+      "name": "Get Sensor Reading",
+      "request": "fe",
+      "completion_code": "0x00",
+      "response": "00c00080"
+    },
+    {
+      "netfn": "0x04",
+      "cmd": "0x2b",
+      "name": "Get Sensor Event Status",
+      "request": "fe",
+      "completion_code": "0x00",
+      "response": "c000000000"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x40",
+      "name": "Get SEL Info",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "510000deff000000005a2b50680f"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x40",
+      "name": "Get SEL Info",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "510000deff000000005a2b50680f"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x40",
+      "name": "Get SEL Info",
+      "request": "",
+      "completion_code": "0x00",
+      "response": "510000deff000000005a2b50680f"
+    },
+    {
+      "netfn": "0x0a",
+      "cmd": "0x43",
+      "name": "Get SEL Entry",
+      "request": "0000000000ff",
+      "completion_code": "0xcb",
+      "response": "",
+      "error": "cc: 0xcb, description: ipmiRes CompletionCode (0xcb) is not normal: Requested sensor, data, or record not found"
+    }
+  ]
+}

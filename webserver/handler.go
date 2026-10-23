@@ -157,11 +157,28 @@ func (w *handler) setPackageManagerState(newState packagemanager.PackageInfo) {
 	}
 }
 
-func (w *handler) handleStatus(response http.ResponseWriter, _ *http.Request) {
+// Responses smaller than this are not compressed
+const gzipMinSize = 1024
+
+// writeJSON writes a JSON response, gzip compressed if the client accepts it (Accept-Encoding: gzip).
+// Clients without the header (e.g. older versions of the receiver or curl without --compressed) get the uncompressed data.
+// The configuration (/config) is never compressed, as it contains passwords.
+func writeJSON(response http.ResponseWriter, request *http.Request, data []byte) error {
 	response.Header().Add("Content-Type", "application/json")
+	response.Header().Add("Vary", "Accept-Encoding")
+	if len(data) >= gzipMinSize && utils.AcceptsGzip(request.Header) {
+		if compressed, err := utils.Gzip(data); err == nil {
+			response.Header().Set("Content-Encoding", "gzip")
+			data = compressed
+		}
+	}
 	response.WriteHeader(http.StatusOK)
-	_, err := response.Write(w.getState())
-	if err != nil {
+	_, err := response.Write(data)
+	return err
+}
+
+func (w *handler) handleStatus(response http.ResponseWriter, request *http.Request) {
+	if err := writeJSON(response, request, w.getState()); err != nil {
 		log.Errorln("Webserver: ", err)
 	}
 }
@@ -213,10 +230,7 @@ func (w *handler) handlePrometheusExporterStatus(response http.ResponseWriter, r
 	response.Write([]byte("Unknown exporter"))
 }
 
-func (w *handler) handlePackageManagerStatus(response http.ResponseWriter, _ *http.Request) {
-	response.Header().Add("Content-Type", "application/json")
-	response.WriteHeader(http.StatusOK)
-
+func (w *handler) handlePackageManagerStatus(response http.ResponseWriter, request *http.Request) {
 	pkgInfo := w.getPackageManagerState()
 
 	data, err := json.Marshal(&pkgInfo)
@@ -226,7 +240,7 @@ func (w *handler) handlePackageManagerStatus(response http.ResponseWriter, _ *ht
 		return
 	}
 
-	if _, err := response.Write(data); err != nil {
+	if err := writeJSON(response, request, data); err != nil {
 		log.Errorln("Webserver Packagemanager: ", err)
 	}
 }
@@ -235,6 +249,32 @@ type configurationPush struct {
 	Configuration                   string `json:"configuration"`
 	CustomCheckConfiguration        string `json:"customcheck_configuration"`
 	PrometheusExporterConfiguration string `json:"prometheus_exporter"`
+	// Optional, as older openITCOCKPIT versions do not know about these configuration files
+	LogfileConfiguration     *string `json:"logfile_configuration,omitempty"`
+	CertificateConfiguration *string `json:"certificate_configuration,omitempty"`
+	FileConfiguration        *string `json:"file_configuration,omitempty"`
+	HTTPConfiguration        *string `json:"http_configuration,omitempty"`
+	PerfCounterConfiguration *string `json:"perfcounter_configuration,omitempty"`
+	RedfishConfiguration     *string `json:"redfish_configuration,omitempty"`
+}
+
+// optionalConfigurationFile is a configuration file which only gets overwritten if it is part of a configuration push
+type optionalConfigurationFile struct {
+	description string
+	field       **string
+	read        func() []byte
+	save        func([]byte) error
+}
+
+func (w *handler) optionalConfigurationFiles(r *configurationPush) []optionalConfigurationFile {
+	return []optionalConfigurationFile{
+		{"logfile", &r.LogfileConfiguration, w.Configuration.ReadLogfileConfiguration, w.Configuration.SaveLogfileConfiguration},
+		{"certificate", &r.CertificateConfiguration, w.Configuration.ReadCertificateConfiguration, w.Configuration.SaveCertificateConfiguration},
+		{"file", &r.FileConfiguration, w.Configuration.ReadFileConfiguration, w.Configuration.SaveFileConfiguration},
+		{"http", &r.HTTPConfiguration, w.Configuration.ReadHTTPConfiguration, w.Configuration.SaveHTTPConfiguration},
+		{"perfcounter", &r.PerfCounterConfiguration, w.Configuration.ReadPerfCounterConfiguration, w.Configuration.SavePerfCounterConfiguration},
+		{"redfish", &r.RedfishConfiguration, w.Configuration.ReadRedfishConfiguration, w.Configuration.SaveRedfishConfiguration},
+	}
 }
 
 func (w *handler) handleConfigRead(response http.ResponseWriter, request *http.Request) {
@@ -262,6 +302,11 @@ func (w *handler) handleConfigRead(response http.ResponseWriter, request *http.R
 
 	data = w.Configuration.ReadPrometheusExporterConfiguration()
 	r.PrometheusExporterConfiguration = base64.StdEncoding.EncodeToString(data)
+
+	for _, file := range w.optionalConfigurationFiles(&r) {
+		encoded := base64.StdEncoding.EncodeToString(file.read())
+		*file.field = &encoded
+	}
 
 	data, err = json.Marshal(&r)
 	if err != nil {
@@ -321,6 +366,19 @@ func (w *handler) handleConfigPush(response http.ResponseWriter, request *http.R
 		return
 	}
 
+	optionalFiles := w.optionalConfigurationFiles(&r)
+	optionalData := make([][]byte, len(optionalFiles))
+	for i, file := range optionalFiles {
+		if *file.field == nil {
+			continue
+		}
+		if optionalData[i], err = base64.StdEncoding.DecodeString(**file.field); err != nil {
+			log.Errorln("Webserver: Could not decode ", file.description, " configuration string for configuration push: ", err)
+			http.Error(response, "invalid json or base64 string", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	if len(cfgData) == 0 {
 		log.Errorln("Webserver: received empty configuration for configuration push: ", err)
 		http.Error(response, "invalid json or base64 string", http.StatusInternalServerError)
@@ -337,6 +395,16 @@ func (w *handler) handleConfigPush(response http.ResponseWriter, request *http.R
 
 	if err := w.Configuration.SavePrometheusExporterConfiguration(prometheusData); err != nil {
 		log.Errorln("Webserver: ", err)
+	}
+
+	// Optional configuration files only get overwritten if they were part of the request
+	for i, file := range optionalFiles {
+		if *file.field == nil {
+			continue
+		}
+		if err := file.save(optionalData[i]); err != nil {
+			log.Errorln("Webserver: ", err)
+		}
 	}
 
 	if w.Reloader != nil {
@@ -360,7 +428,9 @@ func (w *handler) handlerCsr(response http.ResponseWriter, request *http.Request
 		return
 	}
 	log.Infoln("Webserver: CSR generated")
-	if err := os.WriteFile(w.Configuration.AutoSslCsrFile, csr, 0600); err != nil {
+	if err := utils.CreateParentDirectory(w.Configuration.AutoSslCsrFile); err != nil {
+		log.Errorln("Webserver: could not store csr: ", err)
+	} else if err := os.WriteFile(w.Configuration.AutoSslCsrFile, csr, 0600); err != nil {
 		log.Infoln("Webserver: could not store csr: ", err)
 	}
 	js, err := json.Marshal(csrResponse{Csr: string(csr)})
@@ -399,6 +469,15 @@ func (w *handler) handlerUpdateCert(response http.ResponseWriter, request *http.
 		log.Errorln("Webserver: Could not parse certificate update request: ", err)
 		http.Error(response, "internal server error", http.StatusInternalServerError)
 		return
+	}
+
+	// The directories can be changed with autossl-crt-file and autossl-ca-file and may not exist yet
+	for _, file := range []string{w.Configuration.AutoSslCrtFile, w.Configuration.AutoSslCaFile} {
+		if err := utils.CreateParentDirectory(file); err != nil {
+			log.Errorln("Webserver: Could not write certificate file: ", err)
+			http.Error(response, "internal server error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	if err := os.WriteFile(w.Configuration.AutoSslCrtFile, []byte(crtReq.Signed), 0600); err != nil {

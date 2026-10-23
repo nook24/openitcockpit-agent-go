@@ -1,5 +1,9 @@
 pipeline {
     agent any
+    parameters {
+        // Only the main branch gets signed by default, as the number of code signings is limited
+        booleanParam(name: 'SIGN_WINDOWS', defaultValue: false, description: 'Sign the Windows MSI packages also for branches other than main')
+    }
     environment {
         CIBUILD = "1"
         //ADVINST = "\"C:\\Program Files (x86)\\Caphyon\\Advanced Installer\\bin\\x86\\advinst.exe\""
@@ -565,7 +569,12 @@ def test_windows() {
         cleanup_windows()
 
         catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-            bat "go.exe test -timeout=120s ./..."
+            if (env.GOARCH == 'arm64') {
+                // The arm64 test binaries can not be executed on the amd64 build node, so the code and the tests are only compiled and vetted
+                bat "go.exe vet ./..."
+            } else {
+                bat "go.exe test -timeout=120s ./..."
+            }
         }
     }
 }
@@ -664,6 +673,13 @@ def package_linux() {
         sh 'cp example/config_example.ini package/etc/openitcockpit-agent/config.ini'
         sh 'cp example/customchecks_example.ini package/etc/openitcockpit-agent/customchecks.ini'
         sh 'cp example/prometheus_exporters_example.ini package/etc/openitcockpit-agent/prometheus_exporters.ini'
+        sh 'cp example/logfiles_example.ini package/etc/openitcockpit-agent/logfiles.ini'
+        sh 'cp example/certificates_example.ini package/etc/openitcockpit-agent/certificates.ini'
+        sh 'cp example/files_example.ini package/etc/openitcockpit-agent/files.ini'
+        sh 'cp example/http_example.ini package/etc/openitcockpit-agent/http.ini'
+        sh 'cp example/redfish_example.ini package/etc/openitcockpit-agent/redfish.ini'
+        // Contains the passwords of the BMCs
+        sh 'chmod 600 package/etc/openitcockpit-agent/redfish.ini'
         sh 'cp build/package/openitcockpit-agent.init package/etc/openitcockpit-agent/init/openitcockpit-agent.init'
         sh 'cp build/package/openitcockpit-agent.service package/etc/openitcockpit-agent/init/openitcockpit-agent.service'
         sh "cp release/linux/$GOARCH/$BINNAME package/usr/bin/$BINNAME"
@@ -721,8 +737,8 @@ def package_windows(branch) {
         powershell "& $ADVINST /edit \"build\\msi\\openitcockpit-agent-${GOARCH}.aip\" \\NewPathVariable -name AGENT_SOURCE -value \"C:\\jenkins\\workspace\\openitcockpit-agent-go_${branch}\" -valuetype Folder -global"
         powershell "& $ADVINST /edit \"build\\msi\\openitcockpit-agent-${GOARCH}.aip\" \\SetVersion \"$VERSION\""
 
-        if (env.BRANCH_NAME != 'main') {
-            // Disable code-signing for development builds branches
+        if (env.BRANCH_NAME != 'main' && !params.SIGN_WINDOWS) {
+            // Disable code-signing for development builds branches, unless the build parameter SIGN_WINDOWS is set
             powershell "& $ADVINST /edit \"build\\msi\\openitcockpit-agent-${GOARCH}.aip\" \\ResetSig"
         }
 

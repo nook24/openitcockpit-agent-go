@@ -188,29 +188,29 @@ func RunCommand(ctx context.Context, commandArgs CommandArgs) (*CommandResult, e
 
 	c.SysProcAttr = commandSysproc
 
-	// Do not hang forever
-	// https://github.com/golang/go/issues/18874
-	// https://github.com/golang/go/issues/22610
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		<-ctxTimeout.Done()
-		switch ctxTimeout.Err() {
-		case context.DeadlineExceeded:
-			if c.Process != nil {
+	// The goroutine is started after the process, so c.Process is set when the goroutine reads it
+	err = c.Start()
+	if err == nil {
+		// Do not hang forever
+		// https://github.com/golang/go/issues/18874
+		// https://github.com/golang/go/issues/22610
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-ctxTimeout.Done()
+			switch ctxTimeout.Err() {
+			case context.DeadlineExceeded:
 				//Kill process because of timeout
 				// nolint:errcheck
 				killProcessGroup(c.Process)
-			}
-		case context.Canceled:
-			//Process exited gracefully
-			if c.Process != nil {
+			case context.Canceled:
+				//Process exited gracefully
 				// nolint:errcheck
 				killProcessGroup(c.Process)
 			}
-		}
-	}()
-	err = c.Run()
+		}()
+		err = c.Wait()
+	}
 
 	if ctxTimeout.Err() == context.DeadlineExceeded {
 		result.Stdout = fmt.Sprintf("Custom check %s timed out after %s seconds", strings.Join(args, " "), commandArgs.Timeout.String())

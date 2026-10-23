@@ -146,7 +146,7 @@ func usage(errmsg string) {
 		"%s\n\n"+
 			"usage: %s <command>\n"+
 			"       where <command> is one of\n"+
-			"       install, remove, debug, start, stop.\n",
+			"       install, remove, debug, start, stop, version.\n",
 		errmsg, os.Args[0])
 	os.Exit(2)
 }
@@ -278,6 +278,12 @@ func controlService(name string, c svc.Cmd, to svc.State) error {
 }
 
 func PlatformMain() {
+	// The service itself is started without arguments
+	if len(os.Args) == 2 && (os.Args[1] == "--version" || strings.ToLower(os.Args[1]) == "version") {
+		fmt.Print(versionString())
+		return
+	}
+
 	initWbem()
 	if os.Getenv("OITC_AGENT_DEBUG") == "1" {
 		if err := New().Execute(); err != nil {
