@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<DOCUMENT Type="Advanced Installer" CreateVersion="17.6" version="23.4" Modules="professional" RootPath="." Language="de" Id="{E9288F5E-2AE7-47CD-B0B1-6A57BBA9B105}">
+<DOCUMENT Type="Advanced Installer" CreateVersion="17.6" version="23.9" Modules="professional" RootPath="." Language="de" Id="{E9288F5E-2AE7-47CD-B0B1-6A57BBA9B105}">
   <COMPONENT cid="caphyon.advinst.msicomp.MsiPropsComponent">
     <ROW Property="AI_BITMAP_DISPLAY_MODE" Value="0"/>
     <ROW Property="AI_PRODUCTNAME_ARP" Value="[|DISPLAYNAME]"/>
@@ -61,11 +61,23 @@
     <ROW File="customchecks.ini" Component_="example_config.cnf" FileName="CUSTOM~1.INI|customchecks.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\customchecks_example.ini" SelfReg="false"/>
     <ROW File="customchecks1.ini" Component_="example_config.cnf" FileName="PROMET~1.INI|prometheus_exporters.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\prometheus_exporters_example.ini" SelfReg="false"/>
     <ROW File="licenses.csv" Component_="openitcockpitagent.exe" FileName="licenses.csv" Version="65535.65535.65535.65535" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;release\windows\386\licenses.csv" SelfReg="false"/>
+    <ROW File="certificates.ini" Component_="example_config.cnf" FileName="CERTIF~1.INI|certificates.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\certificates_example.ini" SelfReg="false"/>
+    <ROW File="files.ini" Component_="example_config.cnf" FileName="files.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\files_example.ini" SelfReg="false"/>
+    <ROW File="http.ini" Component_="example_config.cnf" FileName="http.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\http_example.ini" SelfReg="false"/>
+    <ROW File="logfiles.ini" Component_="example_config.cnf" FileName="logfiles.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\logfiles_example.ini" SelfReg="false"/>
+    <ROW File="perfcounters.ini" Component_="example_config.cnf" FileName="PERFCO~1.INI|perfcounters.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\perfcounters_example.ini" SelfReg="false"/>
+    <ROW File="redfish.ini" Component_="example_config.cnf" FileName="redfish.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\redfish_example.ini" SelfReg="false"/>
   </COMPONENT>
   <COMPONENT cid="caphyon.advinst.msicomp.AiPersistentDataComponent">
     <ROW PersistentRow="example_config.cnf" Type="0" Condition="1"/>
     <ROW PersistentRow="customchecks.ini" Type="0" Condition="1"/>
     <ROW PersistentRow="customchecks1.ini" Type="0" Condition="1"/>
+    <ROW PersistentRow="certificates.ini" Type="0" Condition="1"/>
+    <ROW PersistentRow="files.ini" Type="0" Condition="1"/>
+    <ROW PersistentRow="http.ini" Type="0" Condition="1"/>
+    <ROW PersistentRow="logfiles.ini" Type="0" Condition="1"/>
+    <ROW PersistentRow="perfcounters.ini" Type="0" Condition="1"/>
+    <ROW PersistentRow="redfish.ini" Type="0" Condition="1"/>
   </COMPONENT>
   <COMPONENT cid="caphyon.advinst.msicomp.BootstrOptComponent">
     <ROW BootstrOptKey="GlobalOptions" DownloadFolder="[AppDataFolder][|Manufacturer]\[|ProductName]\prerequisites" Options="2"/>
@@ -83,7 +95,7 @@
     <ROW Path="&lt;AI_DICTS&gt;ui_en.ail"/>
   </COMPONENT>
   <COMPONENT cid="caphyon.advinst.msicomp.DigCertStoreComponent">
-    <ROW SignOptions="7" SignTool="0" UseSha256="1" Subject="CN=Allgeier IT Services GmbH, OU=OSS, O=Allgeier IT Services GmbH, L=München, C=DE" Store="User\MY" CustomToolPath="..\..\..\..\..\..\Program Files\DigiCert\DigiCert One Signing Manager Tools\smctl.exe" CustomToolCmdLine="smctl.exe sign --verbose --keypair-alias=key_1448342544  --input"/>
+    <ROW SignOptions="7" SignTool="0" UseSha256="1" Subject="CN=DigiCert Trusted G4 Code Signing RSA4096 SHA384 2021 CA1, O=&quot;DigiCert, Inc.&quot;, C=US" Store="User\MY" CustomToolPath="..\..\..\..\..\..\Program Files\DigiCert\DigiCert One Signing Manager Tools\smctl.exe" CustomToolCmdLine="smctl.exe sign --verbose --keypair-alias=key_1448342544  --input"/>
   </COMPONENT>
   <COMPONENT cid="caphyon.advinst.msicomp.FragmentComponent">
     <ROW Fragment="CommonUI.aip" Path="&lt;AI_FRAGS&gt;CommonUI.aip"/>
@@ -108,9 +120,6 @@
     <ROW Action="AI_AiRestoreDeferred" Description="Wiederherstellungsvorgang ausführen" DescriptionLocId="ActionText.Description.AI_AiRestoreDeferred" Template="Pfad: [1]" TemplateLocId="ActionText.Template.AI_AiRestoreDeferred"/>
     <ROW Action="AI_AiRestoreDeferredImpersonate" Description="Wiederherstellungsvorgang ausführen" DescriptionLocId="ActionText.Description.AI_AiRestoreDeferred" Template="Pfad: [1]" TemplateLocId="ActionText.Template.AI_AiRestoreDeferred"/>
     <ROW Action="AI_AiRestoreRollback" Description="Rollback Wiederherstellung" DescriptionLocId="ActionText.Description.AI_AiRestoreRollback" Template="Pfad: [1]" TemplateLocId="ActionText.Template.AI_AiRestoreRollback"/>
-    <ROW Action="AI_DeleteLzma" Description="Lösche die aus dem Archiv extrahierten Dateien" DescriptionLocId="ActionText.Description.AI_DeleteLzma" TemplateLocId="-"/>
-    <ROW Action="AI_DeleteRLzma" Description="Lösche die aus dem Archiv extrahierten Dateien" DescriptionLocId="ActionText.Description.AI_DeleteLzma" TemplateLocId="-"/>
-    <ROW Action="AI_ExtractLzma" Description="Extrahiere Dateien aus dem Archiv" DescriptionLocId="ActionText.Description.AI_ExtractLzma" TemplateLocId="-"/>
   </COMPONENT>
   <COMPONENT cid="caphyon.advinst.msicomp.MsiBinaryComponent">
     <ROW Name="BannerTop.bmp" SourcePath="images\BannerTop.bmp"/>
@@ -118,7 +127,6 @@
     <ROW Name="PowerShellScriptLauncher.dll" SourcePath="&lt;AI_CUSTACTS&gt;PowerShellScriptLauncher.dll"/>
     <ROW Name="ResourceCleaner.dll" SourcePath="&lt;AI_CUSTACTS&gt;ResourceCleaner.dll"/>
     <ROW Name="aicustact.dll" SourcePath="&lt;AI_CUSTACTS&gt;aicustact.dll"/>
-    <ROW Name="lzmaextractor.dll" SourcePath="&lt;AI_CUSTACTS&gt;lzmaextractor.dll"/>
     <ROW Name="viewer.exe" SourcePath="&lt;AI_CUSTACTS&gt;viewer.exe" DigSign="true"/>
   </COMPONENT>
   <COMPONENT cid="caphyon.advinst.msicomp.MsiControlComponent">
@@ -167,15 +175,8 @@
     <ROW Action="AI_DATA_SETTER" Type="51" Source="CustomActionData" Target="AEQAaQBnAGkAdABhAGwAbAB5AFMAaQBnAG4AUwBjAHIAaQBwAHQAAgAxAAEARgBsAGEAZwBzAAIANgABAFAAYQByAGEAbQBzAAIALQBBAFAAUABEAEkAUgAgACIAWwBBAFAAUABEAEkAUgBdACIAAQBTAGMAcgBpAHAAdAACACMAIABCAGwAbwBjAGsAIABmAG8AcgAgAGQAZQBjAGwAYQByAGkAbgBnACAAdABoAGUAIABzAGMAcgBpAHAAdAAgAHAAYQByAGEAbQBlAHQAZQByAHMALgANAAoAUABhAHIAYQBtACgAJABBAFAAUABEAEkAUgApAA0ACgANAAoAaQBmACAAKAAkAEEAUABQAEQASQBSACAALQBuAG8AdABtAGEAdABjAGgAIAAnAFwAXAAkACcAKQANAAoAWwBcAHsAXQANAAoAIAAgACAAIAAkAEEAUABQAEQASQBSACAAKwA9ACAAJwBcACcADQAKAFsAXAB9AF0ADQAKAA0ACgAkAGEAZwBlAG4AdABCAGkAbgAgAD0AIAAkAEEAUABQAEQASQBSACAAKwAgACcAbwBwAGUAbgBpAHQAYwBvAGMAawBwAGkAdAAtAGEAZwBlAG4AdAAuAGUAeABlACcADQAKAA0ACgB3AHIAaQB0AGUALQBoAG8AcwB0ACAAIgBDAGgAZQBjAGsAaQBuAGcAIABmAG8AcgAgACcAbwBwAGUAbgBpAHQAYwBvAGMAawBwAGkAdAAtAGEAZwBlAG4AdAAtAGkAbgAnACAAZgBpAHIAZQB3AGEAbABsACAAcgB1AGwAZQAiAA0ACgBpAGYAIAAoACQAKABHAGUAdAAtAE4AZQB0AEYAaQByAGUAdwBhAGwAbABSAHUAbABlACAgEwBOAGEAbQBlACAAIgBvAHAAZQBuAGkAdABjAG8AYwBrAHAAaQB0AC0AYQBnAGUAbgB0AC0AaQBuACIAKQApAA0ACgBbAFwAewBdAA0ACgAgACAAIAAgAHcAcgBpAHQAZQAtAGgAbwBzAHQAIAAiAEYAaQByAGUAdwBhAGwAbAAgAHIAdQBsAGUAIABmAG8AcgAgACcAbwBwAGUAbgBJAFQAQwBPAEMASwBQAEkAVAAgAE0AbwBuAGkAdABvAHIAaQBuAGcAIABBAGcAZQBuAHQAIABJAG4AJwAgAGEAbAByAGUAYQBkAHkAIABlAHgAaQBzAHQAcwAiAA0ACgBbAFwAfQBdAA0ACgBlAGwAcwBlAA0ACgBbAFwAewBdAA0ACgAgACAAIAAgAHcAcgBpAHQAZQAtAGgAbwBzAHQAIAAiAEYAaQByAGUAdwBhAGwAbAAgAHIAdQBsAGUAIABmAG8AcgAgACcAbwBwAGUAbgBJAFQAQwBPAEMASwBQAEkAVAAgAE0AbwBuAGkAdABvAHIAaQBuAGcAIABBAGcAZQBuAHQAIABJAG4AJwAgAGQAbwBlAHMAIABuAG8AdAAgAGUAeABpAHMAdAAiAA0ACgAgACAAIAAgAE4AZQB3AC0ATgBlAHQARgBpAHIAZQB3AGEAbABsAFIAdQBsAGUAIAAtAE4AYQBtAGUAIAAiAG8AcABlAG4AaQB0AGMAbwBjAGsAcABpAHQALQBhAGcAZQBuAHQALQBpAG4AIgAgAC0ARABpAHMAcABsAGEAeQBOAGEAbQBlACAAIgBvAHAAZQBuAEkAVABDAE8AQwBLAFAASQBUACAATQBvAG4AaQB0AG8AcgBpAG4AZwAgAEEAZwBlAG4AdAAgAEkAbgAiACAALQBEAGkAcgBlAGMAdABpAG8AbgAgAEkAbgBiAG8AdQBuAGQAIAAtAFAAcgBvAGYAaQBsAGUAIABEAG8AbQBhAGkAbgAsAFAAcgBpAHYAYQB0AGUALABQAHUAYgBsAGkAYwAgAC0AQQBjAHQAaQBvAG4AIABBAGwAbABvAHcAIAAtAFAAcgBvAHQAbwBjAG8AbAAgAFQAQwBQACAALQBQAHIAbwBnAHIAYQBtACAAIgAkAGEAZwBlAG4AdABCAGkAbgAiACAALQBSAGUAbQBvAHQAZQBBAGQAZAByAGUAcwBzACAAQQBuAHkAIAAtAEUAbgBhAGIAbABlAGQAIABUAHIAdQBlAA0ACgBbAFwAfQBdAA0ACgANAAoAdwByAGkAdABlAC0AaABvAHMAdAAgACIAQwBoAGUAYwBrAGkAbgBnACAAZgBvAHIAIAAnAG8AcABlAG4AaQB0AGMAbwBjAGsAcABpAHQALQBhAGcAZQBuAHQALQBvAHUAdAAnACAAZgBpAHIAZQB3AGEAbABsACAAcgB1AGwAZQAiAA0ACgBpAGYAIAAoACQAKABHAGUAdAAtAE4AZQB0AEYAaQByAGUAdwBhAGwAbABSAHUAbABlACAgEwBOAGEAbQBlACAAIgBvAHAAZQBuAGkAdABjAG8AYwBrAHAAaQB0AC0AYQBnAGUAbgB0AC0AbwB1AHQAIgApACkADQAKAFsAXAB7AF0ADQAKACAAIAAgACAAdwByAGkAdABlAC0AaABvAHMAdAAgACIARgBpAHIAZQB3AGEAbABsACAAcgB1AGwAZQAgAGYAbwByACAAJwBvAHAAZQBuAEkAVABDAE8AQwBLAFAASQBUACAATQBvAG4AaQB0AG8AcgBpAG4AZwAgAEEAZwBlAG4AdAAgAE8AdQB0ACcAIABhAGwAcgBlAGEAZAB5ACAAZQB4AGkAcwB0AHMAIgANAAoAWwBcAH0AXQANAAoAZQBsAHMAZQANAAoAWwBcAHsAXQANAAoAIAAgACAAIAB3AHIAaQB0AGUALQBoAG8AcwB0ACAAIgBGAGkAcgBlAHcAYQBsAGwAIAByAHUAbABlACAAZgBvAHIAIAAnAG8AcABlAG4ASQBUAEMATwBDAEsAUABJAFQAIABNAG8AbgBpAHQAbwByAGkAbgBnACAAQQBnAGUAbgB0ACAATwB1AHQAJwAgAGQAbwBlAHMAIABuAG8AdAAgAGUAeABpAHMAdAAiAA0ACgAgACAAIAAgAE4AZQB3AC0ATgBlAHQARgBpAHIAZQB3AGEAbABsAFIAdQBsAGUAIAAtAE4AYQBtAGUAIAAiAG8AcABlAG4AaQB0AGMAbwBjAGsAcABpAHQALQBhAGcAZQBuAHQALQBvAHUAdAAiACAALQBEAGkAcwBwAGwAYQB5AE4AYQBtAGUAIAAiAG8AcABlAG4ASQBUAEMATwBDAEsAUABJAFQAIABNAG8AbgBpAHQAbwByAGkAbgBnACAAQQBnAGUAbgB0ACAATwB1AHQAIgAgAC0ARABpAHIAZQBjAHQAaQBvAG4AIABPAHUAdABiAG8AdQBuAGQAIAAtAFAAcgBvAGYAaQBsAGUAIABEAG8AbQBhAGkAbgAsAFAAcgBpAHYAYQB0AGUALABQAHUAYgBsAGkAYwAgAC0AQQBjAHQAaQBvAG4AIABBAGwAbABvAHcAIAAtAFAAcgBvAHQAbwBjAG8AbAAgAFQAQwBQACAALQBQAHIAbwBnAHIAYQBtACAAIgAkAGEAZwBlAG4AdABCAGkAbgAiACAALQBSAGUAbQBvAHQAZQBBAGQAZAByAGUAcwBzACAAQQBuAHkAIAAtAEUAbgBhAGIAbABlAGQAIABUAHIAdQBlAA0ACgBbAFwAfQBd"/>
     <ROW Action="AI_DATA_SETTER_1" Type="51" Source="CustomActionData" Target="AEQAaQBnAGkAdABhAGwAbAB5AFMAaQBnAG4AUwBjAHIAaQBwAHQAAgAxAAEARgBsAGEAZwBzAAIANgABAFAAYQByAGEAbQBzAAIALQBBAFAAUABEAEkAUgAgACIAWwBBAFAAUABEAEkAUgBdACIAAQBTAGMAcgBpAHAAdAACACMAIABCAGwAbwBjAGsAIABmAG8AcgAgAGQAZQBjAGwAYQByAGkAbgBnACAAdABoAGUAIABzAGMAcgBpAHAAdAAgAHAAYQByAGEAbQBlAHQAZQByAHMALgANAAoAUABhAHIAYQBtACgAJABBAFAAUABEAEkAUgApAA0ACgANAAoAdwByAGkAdABlAC0AaABvAHMAdAAgACIAQwBoAGUAYwBrAGkAbgBnACAAZgBvAHIAIAAnAG8AcABlAG4AaQB0AGMAbwBjAGsAcABpAHQALQBhAGcAZQBuAHQALQBpAG4AJwAgAGYAaQByAGUAdwBhAGwAbAAgAHIAdQBsAGUAIgANAAoAaQBmACAAKAAkACgARwBlAHQALQBOAGUAdABGAGkAcgBlAHcAYQBsAGwAUgB1AGwAZQAgIBMATgBhAG0AZQAgACIAbwBwAGUAbgBpAHQAYwBvAGMAawBwAGkAdAAtAGEAZwBlAG4AdAAtAGkAbgAiACkAKQANAAoAWwBcAHsAXQANAAoAIAAgACAAIAB3AHIAaQB0AGUALQBoAG8AcwB0ACAAIgBGAGkAcgBlAHcAYQBsAGwAIAByAHUAbABlACAAZgBvAHIAIAAnAG8AcABlAG4ASQBUAEMATwBDAEsAUABJAFQAIABNAG8AbgBpAHQAbwByAGkAbgBnACAAQQBnAGUAbgB0ACAASQBuACcAIABlAHgAaQBzAHQAcwAiAA0ACgAgACAAIAAgAFIAZQBtAG8AdgBlAC0ATgBlAHQARgBpAHIAZQB3AGEAbABsAFIAdQBsAGUAIAAtAE4AYQBtAGUAIAAiAG8AcABlAG4AaQB0AGMAbwBjAGsAcABpAHQALQBhAGcAZQBuAHQALQBpAG4AIgANAAoAWwBcAH0AXQANAAoADQAKAHcAcgBpAHQAZQAtAGgAbwBzAHQAIAAiAEMAaABlAGMAawBpAG4AZwAgAGYAbwByACAAJwBvAHAAZQBuAGkAdABjAG8AYwBrAHAAaQB0AC0AYQBnAGUAbgB0AC0AbwB1AHQAJwAgAGYAaQByAGUAdwBhAGwAbAAgAHIAdQBsAGUAIgANAAoAaQBmACAAKAAkACgARwBlAHQALQBOAGUAdABGAGkAcgBlAHcAYQBsAGwAUgB1AGwAZQAgIBMATgBhAG0AZQAgACIAbwBwAGUAbgBpAHQAYwBvAGMAawBwAGkAdAAtAGEAZwBlAG4AdAAtAG8AdQB0ACIAKQApAA0ACgBbAFwAewBdAA0ACgAgACAAIAAgAHcAcgBpAHQAZQAtAGgAbwBzAHQAIAAiAEYAaQByAGUAdwBhAGwAbAAgAHIAdQBsAGUAIABmAG8AcgAgACcAbwBwAGUAbgBJAFQAQwBPAEMASwBQAEkAVAAgAE0AbwBuAGkAdABvAHIAaQBuAGcAIABBAGcAZQBuAHQAIABPAHUAdAAnACAAZQB4AGkAcwB0AHMAIgANAAoAIAAgACAAIABSAGUAbQBvAHYAZQAtAE4AZQB0AEYAaQByAGUAdwBhAGwAbABSAHUAbABlACAALQBOAGEAbQBlACAAIgBvAHAAZQBuAGkAdABjAG8AYwBrAHAAaQB0AC0AYQBnAGUAbgB0AC0AbwB1AHQAIgANAAoAWwBcAH0AXQANAAo="/>
     <ROW Action="AI_DOWNGRADE" Type="19" Target="4010"/>
-    <ROW Action="AI_DeleteCadLzma" Type="51" Source="AI_DeleteLzma" Target="[AI_SETUPEXEPATH]"/>
-    <ROW Action="AI_DeleteLzma" Type="1025" Source="lzmaextractor.dll" Target="DeleteLZMAFiles"/>
-    <ROW Action="AI_DeleteRCadLzma" Type="51" Source="AI_DeleteRLzma" Target="[AI_SETUPEXEPATH]"/>
-    <ROW Action="AI_DeleteRLzma" Type="1281" Source="lzmaextractor.dll" Target="DeleteLZMAFiles"/>
     <ROW Action="AI_DpiContentScale" Type="1" Source="aicustact.dll" Target="DpiContentScale"/>
     <ROW Action="AI_EnableDebugLog" Type="321" Source="aicustact.dll" Target="EnableDebugLog"/>
-    <ROW Action="AI_ExtractCadLzma" Type="51" Source="AI_ExtractLzma" Target="[AI_SETUPEXEPATH]"/>
-    <ROW Action="AI_ExtractLzma" Type="1025" Source="lzmaextractor.dll" Target="ExtractLZMAFiles"/>
-    <ROW Action="AI_FindExeLzma" Type="1" Source="lzmaextractor.dll" Target="FindEXE"/>
     <ROW Action="AI_GetArpIconPath" Type="1" Source="aicustact.dll" Target="GetArpIconPath"/>
     <ROW Action="AI_InstallModeCheck" Type="1" Source="aicustact.dll" Target="UpdateInstallMode" WithoutSeq="true"/>
     <ROW Action="AI_PREPARE_UPGRADE" Type="65" Source="aicustact.dll" Target="PrepareUpgrade"/>
@@ -220,15 +221,6 @@
     <ROW Action="AI_AiRestoreDeferredImpersonate" Sequence="6597"/>
     <ROW Action="AI_AiRestoreDeferred" Sequence="6598"/>
     <ROW Action="AI_AiBackupRollbackImpersonate" Sequence="1501"/>
-    <ROW Action="AI_BACKUP_AI_SETUPEXEPATH" Sequence="99" Builds="DefaultBuild"/>
-    <ROW Action="AI_RESTORE_AI_SETUPEXEPATH" Condition="AI_SETUPEXEPATH_ORIGINAL" Sequence="101" Builds="DefaultBuild"/>
-    <ROW Action="AI_DeleteCadLzma" Condition="SETUPEXEDIR=&quot;&quot; AND Installed AND (REMOVE&lt;&gt;&quot;ALL&quot;) AND (AI_INSTALL_MODE&lt;&gt;&quot;Remove&quot;) AND (NOT PATCH)" Sequence="199" Builds="DefaultBuild"/>
-    <ROW Action="AI_DeleteRCadLzma" Condition="SETUPEXEDIR=&quot;&quot; AND Installed AND (REMOVE&lt;&gt;&quot;ALL&quot;) AND (AI_INSTALL_MODE&lt;&gt;&quot;Remove&quot;) AND (NOT PATCH)" Sequence="198" Builds="DefaultBuild"/>
-    <ROW Action="AI_ExtractCadLzma" Condition="SETUPEXEDIR=&quot;&quot; AND Installed AND (REMOVE&lt;&gt;&quot;ALL&quot;) AND (AI_INSTALL_MODE&lt;&gt;&quot;Remove&quot;) AND (NOT PATCH)" Sequence="197" Builds="DefaultBuild"/>
-    <ROW Action="AI_FindExeLzma" Condition="SETUPEXEDIR=&quot;&quot; AND Installed AND (REMOVE&lt;&gt;&quot;ALL&quot;) AND (AI_INSTALL_MODE&lt;&gt;&quot;Remove&quot;) AND (NOT PATCH)" Sequence="196" Builds="DefaultBuild"/>
-    <ROW Action="AI_ExtractLzma" Condition="SETUPEXEDIR=&quot;&quot; AND Installed AND (REMOVE&lt;&gt;&quot;ALL&quot;) AND (AI_INSTALL_MODE&lt;&gt;&quot;Remove&quot;) AND (NOT PATCH)" Sequence="1549" Builds="DefaultBuild"/>
-    <ROW Action="AI_DeleteRLzma" Condition="SETUPEXEDIR=&quot;&quot; AND Installed AND (REMOVE&lt;&gt;&quot;ALL&quot;) AND (AI_INSTALL_MODE&lt;&gt;&quot;Remove&quot;) AND (NOT PATCH)" Sequence="1548" Builds="DefaultBuild"/>
-    <ROW Action="AI_DeleteLzma" Condition="SETUPEXEDIR=&quot;&quot; AND Installed AND (REMOVE&lt;&gt;&quot;ALL&quot;) AND (AI_INSTALL_MODE&lt;&gt;&quot;Remove&quot;) AND (NOT PATCH)" Sequence="6599" Builds="DefaultBuild"/>
   </COMPONENT>
   <COMPONENT cid="caphyon.advinst.msicomp.MsiInstallUISequenceComponent">
     <ROW Action="AI_RESTORE_LOCATION" Condition="APPDIR=&quot;&quot;" Sequence="749"/>
