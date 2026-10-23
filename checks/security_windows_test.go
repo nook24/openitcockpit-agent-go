@@ -3,9 +3,13 @@ package checks
 import (
 	"context"
 	"encoding/json"
+	"math"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/go-ole/go-ole"
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/config"
 )
 
@@ -102,5 +106,30 @@ func TestCheckWindowsPerfCounter(t *testing.T) {
 				t.Errorf("expected error for %s: %s", name, js)
 			}
 		}
+	}
+}
+
+// variantDateToTime must return the same time as VariantTimeToSystemTime of Windows (only usable on amd64, it crashes
+// the agent on ARM64)
+func TestVariantDateToTime(t *testing.T) {
+	values := []float64{0, 1, 2.5, 36526, 45000.5, 45000.999994, 46325.6789, 46325.000006, 73050.25, -1.25, -0.5}
+	for _, value := range values {
+		got := variantDateToTime(value, time.UTC)
+		if runtime.GOARCH != "amd64" {
+			continue
+		}
+		want, err := ole.GetVariantDate(math.Float64bits(value))
+		if err != nil {
+			t.Fatalf("%v: %s", value, err)
+		}
+		if !got.Equal(want) {
+			t.Errorf("%v: got %s, want %s", value, got, want)
+		}
+	}
+	if got := variantDateToTime(45000.5, time.UTC); !got.Equal(time.Date(2023, 3, 15, 12, 0, 0, 0, time.UTC)) {
+		t.Errorf("unexpected time: %s", got)
+	}
+	if got := variantDateToTime(-1.25, time.UTC); !got.Equal(time.Date(1899, 12, 29, 6, 0, 0, 0, time.UTC)) {
+		t.Errorf("unexpected time of a negative date: %s", got)
 	}
 }

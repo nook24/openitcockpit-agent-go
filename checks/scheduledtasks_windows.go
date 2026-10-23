@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"runtime"
 	"strings"
 	"time"
@@ -186,13 +187,27 @@ func taskTimeProperty(task *ole.IDispatch, name string) int64 {
 		return 0
 	}
 	defer v.Clear()
-	t, ok := v.Value().(time.Time)
-	// Tasks which did not run yet return 1999-11-30 or 1899-12-30
-	if !ok || t.Year() < 2000 {
+	if v.VT != ole.VT_DATE {
 		return 0
 	}
-	// go-ole returns the local time of the Task Scheduler as UTC
-	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, time.Local).Unix()
+	t := variantDateToTime(math.Float64frombits(uint64(v.Val)), time.Local)
+	// Tasks which did not run yet return 1999-11-30 or 1899-12-30
+	if t.Year() < 2000 {
+		return 0
+	}
+	return t.Unix()
+}
+
+// variantDateToTime converts an OLE Automation date (VT_DATE) of the given location. The date is the number of days since
+// 1899-12-30, the fraction is the time of the day (also for negative dates).
+//
+// VARIANT.Value() of go-ole is not used, it converts the date with VariantTimeToSystemTime, which crashes the agent on
+// Windows ARM64: go-ole passes the double in two integer registers, but the function expects it in a floating point
+// register and writes the result to an invalid address.
+func variantDateToTime(date float64, location *time.Location) time.Time {
+	days, fraction := math.Modf(date)
+	seconds := int(math.Round(math.Abs(fraction) * 86400))
+	return time.Date(1899, 12, 30+int(days), 0, 0, seconds, 0, location)
 }
 
 func variantInt(v *ole.VARIANT) int64 {
