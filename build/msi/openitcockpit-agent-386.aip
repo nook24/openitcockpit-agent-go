@@ -48,6 +48,12 @@
     <ROW Component="InstallLocation" ComponentId="{D328FF66-D7E2-4AA0-BC85-9513320C5792}" Directory_="APPDIR" Attributes="260" KeyPath="InstallLocation_1"/>
     <ROW Component="InstalledProducts" ComponentId="{CA7D6B09-12ED-49E8-90CF-F0DCA6B33BA0}" Directory_="APPDIR" Attributes="260" KeyPath="InstalledProducts"/>
     <ROW Component="ProductInformation" ComponentId="{DF0372D3-6549-4A5C-B7F4-467C370BD2FE}" Directory_="APPDIR" Attributes="260" KeyPath="Version"/>
+    <ROW Component="certificates.ini" ComponentId="{560E8D40-9014-4D81-8CDE-9F0DD2F2D055}" Directory_="APPDIR" Attributes="144" KeyPath="certificates.ini" Type="0"/>
+    <ROW Component="files.ini" ComponentId="{A8CD92AA-AB2A-4CCB-A4C1-9C0645453F6B}" Directory_="APPDIR" Attributes="144" KeyPath="files.ini" Type="0"/>
+    <ROW Component="http.ini" ComponentId="{E20904CB-210B-4580-B50B-907C09E9A46F}" Directory_="APPDIR" Attributes="144" KeyPath="http.ini" Type="0"/>
+    <ROW Component="logfiles.ini" ComponentId="{96B9A0F8-29C2-4A05-A1BA-A39ED0AA773B}" Directory_="APPDIR" Attributes="144" KeyPath="logfiles.ini" Type="0"/>
+    <ROW Component="perfcounters.ini" ComponentId="{98DA60E7-556A-40BE-876D-FAEFA20002ED}" Directory_="APPDIR" Attributes="144" KeyPath="perfcounters.ini" Type="0"/>
+    <ROW Component="redfish.ini" ComponentId="{749A33FD-9A03-4A28-9D60-4C744CB061FC}" Directory_="APPDIR" Attributes="144" KeyPath="redfish.ini" Type="0"/>
     <ROW Component="example_config.cnf" ComponentId="{48535BA8-61E9-469A-B9D2-3CBC7088A9E3}" Directory_="APPDIR" Attributes="144" KeyPath="example_config.cnf" Type="0"/>
     <ROW Component="openitcockpitagent.exe" ComponentId="{38146C11-69B3-4543-98EE-4A2758B5BFA6}" Directory_="APPDIR" Attributes="256" KeyPath="openitcockpitagent.exe"/>
   </COMPONENT>
@@ -61,12 +67,12 @@
     <ROW File="customchecks.ini" Component_="example_config.cnf" FileName="CUSTOM~1.INI|customchecks.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\customchecks_example.ini" SelfReg="false"/>
     <ROW File="customchecks1.ini" Component_="example_config.cnf" FileName="PROMET~1.INI|prometheus_exporters.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\prometheus_exporters_example.ini" SelfReg="false"/>
     <ROW File="licenses.csv" Component_="openitcockpitagent.exe" FileName="licenses.csv" Version="65535.65535.65535.65535" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;release\windows\386\licenses.csv" SelfReg="false"/>
-    <ROW File="certificates.ini" Component_="example_config.cnf" FileName="CERTIF~1.INI|certificates.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\certificates_example.ini" SelfReg="false"/>
-    <ROW File="files.ini" Component_="example_config.cnf" FileName="files.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\files_example.ini" SelfReg="false"/>
-    <ROW File="http.ini" Component_="example_config.cnf" FileName="http.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\http_example.ini" SelfReg="false"/>
-    <ROW File="logfiles.ini" Component_="example_config.cnf" FileName="logfiles.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\logfiles_example.ini" SelfReg="false"/>
-    <ROW File="perfcounters.ini" Component_="example_config.cnf" FileName="PERFCO~1.INI|perfcounters.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\perfcounters_example.ini" SelfReg="false"/>
-    <ROW File="redfish.ini" Component_="example_config.cnf" FileName="redfish.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\redfish_example.ini" SelfReg="false"/>
+    <ROW File="certificates.ini" Component_="certificates.ini" FileName="CERTIF~1.INI|certificates.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\certificates_example.ini" SelfReg="false"/>
+    <ROW File="files.ini" Component_="files.ini" FileName="files.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\files_example.ini" SelfReg="false"/>
+    <ROW File="http.ini" Component_="http.ini" FileName="http.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\http_example.ini" SelfReg="false"/>
+    <ROW File="logfiles.ini" Component_="logfiles.ini" FileName="logfiles.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\logfiles_example.ini" SelfReg="false"/>
+    <ROW File="perfcounters.ini" Component_="perfcounters.ini" FileName="PERFCO~1.INI|perfcounters.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\perfcounters_example.ini" SelfReg="false"/>
+    <ROW File="redfish.ini" Component_="redfish.ini" FileName="redfish.ini" Attributes="0" SourcePath="&lt;AGENT_SOURCE&gt;example\redfish_example.ini" SelfReg="false"/>
   </COMPONENT>
   <COMPONENT cid="caphyon.advinst.msicomp.AiPersistentDataComponent">
     <ROW PersistentRow="example_config.cnf" Type="0" Condition="1"/>
@@ -197,6 +203,12 @@
     <ROW Feature_="MainFeature" Component_="ProductInformation"/>
     <ROW Feature_="MainFeature" Component_="AI_CustomARPName"/>
     <ROW Feature_="MainFeature" Component_="example_config.cnf"/>
+    <ROW Feature_="MainFeature" Component_="certificates.ini"/>
+    <ROW Feature_="MainFeature" Component_="files.ini"/>
+    <ROW Feature_="MainFeature" Component_="http.ini"/>
+    <ROW Feature_="MainFeature" Component_="logfiles.ini"/>
+    <ROW Feature_="MainFeature" Component_="perfcounters.ini"/>
+    <ROW Feature_="MainFeature" Component_="redfish.ini"/>
     <ROW Feature_="MainFeature" Component_="InstalledProducts"/>
     <ROW Feature_="MainFeature" Component_="InstallLocation"/>
     <ROW Feature_="MainFeature" Component_="openitcockpitagent.exe"/>
