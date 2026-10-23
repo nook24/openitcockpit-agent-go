@@ -722,14 +722,32 @@ def package_windows(branch) {
         unstash name: "release-$GOOS-$GOARCH"
 
         // Convert Linux new lines to Windows new lines for older Windows Server systems
+        bat 'move example\\certificates_example.ini example\\certificates_example_linux.ini'
+        bat 'TYPE example\\certificates_example_linux.ini | MORE /P > example\\certificates_example.ini'
+
         bat 'move example\\config_example.ini example\\config_example_linux.ini'
         bat 'TYPE example\\config_example_linux.ini | MORE /P > example\\config_example.ini'
 
         bat 'move example\\customchecks_example.ini example\\customchecks_example_linux.ini'
         bat 'TYPE example\\customchecks_example_linux.ini | MORE /P > example\\customchecks_example.ini'
 
+        bat 'move example\\files_example.ini example\\files_example_linux.ini'
+        bat 'TYPE example\\files_example_linux.ini | MORE /P > example\\files_example.ini'
+
+        bat 'move example\\http_example.ini example\\http_example_linux.ini'
+        bat 'TYPE example\\http_example_linux.ini | MORE /P > example\\http_example.ini'
+
+        bat 'move example\\logfiles_example.ini example\\logfiles_example_linux.ini'
+        bat 'TYPE example\\logfiles_example_linux.ini | MORE /P > example\\logfiles_example.ini'
+
+        bat 'move example\\perfcounters_example.ini example\\perfcounters_example_linux.ini'
+        bat 'TYPE example\\perfcounters_example_linux.ini | MORE /P > example\\perfcounters_example.ini'
+
         bat 'move example\\prometheus_exporters_example.ini example\\prometheus_exporters_linux.ini'
         bat 'TYPE example\\prometheus_exporters_linux.ini | MORE /P > example\\prometheus_exporters_example.ini'
+
+        bat 'move example\\redfish_example.ini example\\redfish_example_linux.ini'
+        bat 'TYPE example\\redfish_example_linux.ini | MORE /P > example\\redfish_example.ini'
 
         powershell "& \"C:\\Program Files\\DigiCert\\DigiCert One Signing Manager Tools\\smctl.exe\" healthcheck"
 
