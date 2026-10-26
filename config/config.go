@@ -15,7 +15,7 @@ import (
 )
 
 // AgentVersion as the name says
-const AgentVersion = "3.6.1"
+const AgentVersion = "3.7.0"
 
 // CustomCheck are external plugins and scripts which should be executed by the Agent
 type CustomCheck struct {
@@ -97,6 +97,12 @@ type Configuration struct {
 
 	ConfigUpdate         bool   `mapstructure:"config-update-mode"`
 	CustomchecksFilePath string `mapstructure:"customchecks"`
+	LogfilesFilePath     string `mapstructure:"logfiles"`
+	CertificatesFilePath string `mapstructure:"certificates"`
+	FilesFilePath        string `mapstructure:"files"`
+	HTTPFilePath         string `mapstructure:"http"`
+	PerfCountersFilePath string `mapstructure:"perfcounters"`
+	RedfishFilePath      string `mapstructure:"redfish"`
 
 	// EnablePPROF for debugging memory leaks with the go tool pprof command
 	EnablePPROF bool `mapstructure:"enable-dev-pprof"`
@@ -119,11 +125,24 @@ type Configuration struct {
 	User            bool  `mapstructure:"userstats"`
 	WindowsServices bool  `mapstructure:"winservices"`
 	WindowsEventLog bool  `mapstructure:"wineventlog"`
+	WindowsTasks    bool  `mapstructure:"winscheduledtasks"`
 	SystemdServices bool  `mapstructure:"systemdservices"`
 	LaunchdServices bool  `mapstructure:"launchdservices"`
 	Alfresco        bool  `mapstructure:"alfrescostats"`
 	Libvirt         bool  `mapstructure:"libvirt"`
 	Ntp             bool  `mapstructure:"ntp"`
+	SystemHealth    bool  `mapstructure:"systemhealth"`
+	Security        bool  `mapstructure:"security"`
+	Zfs             bool  `mapstructure:"zfs"`
+	Ceph            bool  `mapstructure:"ceph"`
+	Smart           bool  `mapstructure:"smart"`
+	Proxmox         bool  `mapstructure:"proxmox"`
+	Postfix         bool  `mapstructure:"postfix"`
+	Exim            bool  `mapstructure:"exim"`
+	Lvm             bool  `mapstructure:"lvm"`
+	Mounts          bool  `mapstructure:"mounts"`
+	NetworkPorts    bool  `mapstructure:"networkports"`
+	Ipmi            bool  `mapstructure:"ipmi"`
 
 	// Alfresco
 
@@ -135,12 +154,21 @@ type Configuration struct {
 	JmxQuery    string `mapstructure:"alfresco-jmxquery"`
 	JavaPath    string `mapstructure:"alfresco-javapath"`
 
+	// IPMI: interval of the background collection and time window of the SEL entries in seconds
+	IpmiInterval  int64 `mapstructure:"ipmi-interval"`
+	IpmiSelWindow int64 `mapstructure:"ipmi-sel-window"`
+
+	// Windows scheduled tasks: Also report the tasks of the \Microsoft\ folder
+	WindowsTasksIncludeMicrosoft bool `mapstructure:"winscheduledtasks-include-microsoft"`
+
 	// WindowsEventLog with all event log types to monitor
 
 	WindowsEventLogTypes  []string `mapstructure:"wineventlog-logtypes"`
 	WindowsEventLogAge    int64    `mapstructure:"wineventlog-age"`    // WMI Version
 	WindowsEventLogCache  int64    `mapstructure:"wineventlog-cache"`  // JD Version
-	WindowsEventLogMethod string   `mapstructure:"wineventlog-method"` // WMI or PowerShell
+	WindowsEventLogMethod string   `mapstructure:"wineventlog-method"` // WMI, PowerShell or EvtApi
+	// EvtApi only: Maximum number of records per event log (the newest records are kept)
+	WindowsEventLogMaxRecords int64 `mapstructure:"wineventlog-max-records"`
 
 	// Push Mode
 
@@ -151,6 +179,13 @@ type Configuration struct {
 
 	CustomCheckConfiguration []*CustomCheck `json:"customchecks_configuration" mapstructure:"-"`
 
+	LogfileConfiguration     []*LogfileDefinition     `json:"logfiles_configuration" mapstructure:"-"`
+	CertificateConfiguration []*CertificateDefinition `json:"certificates_configuration" mapstructure:"-"`
+	FileConfiguration        []*FileDefinition        `json:"files_configuration" mapstructure:"-"`
+	HTTPConfiguration        []*HTTPDefinition        `json:"http_configuration" mapstructure:"-"`
+	PerfCounterConfiguration []*PerfCounterDefinition `json:"perfcounter_configuration" mapstructure:"-"`
+	RedfishConfiguration     []*RedfishDefinition     `json:"-" mapstructure:"-"` // Contains passwords
+
 	// Prometheus Exporter / Proxy
 	Prometheus                      *PrometheusConfiguration `json:"prometheus"`
 	PrometheusExporterConfiguration []*PrometheusExporter    `json:"prometheus_exporter_configuration" mapstructure:"-"`
@@ -160,37 +195,59 @@ type Configuration struct {
 }
 
 var defaultValue = map[string]interface{}{
-	"port":                 3333,
-	"interval":             30,
-	"qemustats":            true,
-	"cpustats":             true,
-	"load":                 true,
-	"memory":               true,
-	"processstats":         true,
-	"netstats":             true,
-	"netio":                true,
-	"sensors":              true,
-	"diskstats":            true,
-	"diskio":               true,
-	"swap":                 true,
-	"userstats":            true,
-	"winservices":          true,
-	"wineventlog":          true,
-	"systemdservices":      true,
-	"alfrescostats":        true,
-	"libvirt":              true,
-	"ntp":                  true,
-	"wineventlog-logtypes": "System,Application",
-	"wineventlog-age":      3600,
-	"wineventlog-cache":    3600,
-	"wineventlog-method":   "WMI",
-	"customchecks":         filepath.Join(platformpaths.Get().ConfigPath(), "customchecks.ini"),
-	"tls-security-level":   "lax",
-	"autossl-folder":       platformpaths.Get().ConfigPath(),
-	"autossl-csr-file":     filepath.Join(platformpaths.Get().ConfigPath(), "agent.csr"),
-	"autossl-crt-file":     filepath.Join(platformpaths.Get().ConfigPath(), "agent.crt"),
-	"autossl-key-file":     filepath.Join(platformpaths.Get().ConfigPath(), "agent.key"),
-	"autossl-ca-file":      filepath.Join(platformpaths.Get().ConfigPath(), "server_ca.crt"),
+	"port":                    3333,
+	"interval":                30,
+	"qemustats":               true,
+	"cpustats":                true,
+	"load":                    true,
+	"memory":                  true,
+	"processstats":            true,
+	"netstats":                true,
+	"netio":                   true,
+	"sensors":                 true,
+	"diskstats":               true,
+	"diskio":                  true,
+	"swap":                    true,
+	"userstats":               true,
+	"winservices":             true,
+	"wineventlog":             true,
+	"winscheduledtasks":       true,
+	"systemdservices":         true,
+	"alfrescostats":           true,
+	"libvirt":                 true,
+	"ntp":                     true,
+	"systemhealth":            true,
+	"security":                true,
+	"zfs":                     true,
+	"ceph":                    true,
+	"smart":                   true,
+	"proxmox":                 true,
+	"postfix":                 true,
+	"exim":                    true,
+	"lvm":                     true,
+	"mounts":                  true,
+	"networkports":            true,
+	"ipmi":                    true,
+	"ipmi-interval":           60,
+	"ipmi-sel-window":         86400,
+	"wineventlog-logtypes":    "System,Application",
+	"wineventlog-age":         3600,
+	"wineventlog-cache":       3600,
+	"wineventlog-method":      "WMI",
+	"wineventlog-max-records": 1000,
+	"customchecks":            filepath.Join(platformpaths.Get().ConfigPath(), "customchecks.ini"),
+	"logfiles":                filepath.Join(platformpaths.Get().ConfigPath(), "logfiles.ini"),
+	"certificates":            filepath.Join(platformpaths.Get().ConfigPath(), "certificates.ini"),
+	"files":                   filepath.Join(platformpaths.Get().ConfigPath(), "files.ini"),
+	"http":                    filepath.Join(platformpaths.Get().ConfigPath(), "http.ini"),
+	"perfcounters":            filepath.Join(platformpaths.Get().ConfigPath(), "perfcounters.ini"),
+	"redfish":                 filepath.Join(platformpaths.Get().ConfigPath(), "redfish.ini"),
+	"tls-security-level":      "lax",
+	"autossl-folder":          platformpaths.Get().ConfigPath(),
+	"autossl-csr-file":        filepath.Join(platformpaths.Get().ConfigPath(), "agent.csr"),
+	"autossl-crt-file":        filepath.Join(platformpaths.Get().ConfigPath(), "agent.crt"),
+	"autossl-key-file":        filepath.Join(platformpaths.Get().ConfigPath(), "agent.key"),
+	"autossl-ca-file":         filepath.Join(platformpaths.Get().ConfigPath(), "server_ca.crt"),
 }
 
 var oitcDefaultvalue = map[string]interface{}{
@@ -262,6 +319,14 @@ func unmarshalConfiguration(v *viper.Viper) (*Configuration, error) {
 	if cfg.CustomCheckConfiguration == nil {
 		cfg.CustomCheckConfiguration = []*CustomCheck{}
 	}
+
+	// logfiles.ini, certificates.ini and files.ini are optional, so missing files are not an error
+	cfg.LogfileConfiguration = loadOptionalDefinitions(cfg.LogfilesFilePath, "logfile definitions", unmarshalLogfiles)
+	cfg.CertificateConfiguration = loadOptionalDefinitions(cfg.CertificatesFilePath, "certificate definitions", unmarshalCertificates)
+	cfg.FileConfiguration = loadOptionalDefinitions(cfg.FilesFilePath, "file definitions", unmarshalFiles)
+	cfg.HTTPConfiguration = loadOptionalDefinitions(cfg.HTTPFilePath, "http definitions", unmarshalHTTP)
+	cfg.PerfCounterConfiguration = loadOptionalDefinitions(cfg.PerfCountersFilePath, "perfcounter definitions", unmarshalPerfCounters)
+	cfg.RedfishConfiguration = loadOptionalDefinitions(cfg.RedfishFilePath, "redfish definitions", unmarshalRedfish)
 
 	// Parse Prometheus Exporter configuration
 	if cfg.Prometheus.ExportersFilePath != "" && cfg.Prometheus.Enable {

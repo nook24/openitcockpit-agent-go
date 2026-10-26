@@ -29,7 +29,7 @@ func (c *CheckCpu) Run(ctx context.Context) (interface{}, error) {
 	var dst []Win32_PerfFormattedData_PerfOS_Processor
 	err := wmi.Query("SELECT * FROM Win32_PerfFormattedData_PerfOS_Processor", &dst)
 	if err != nil {
-		return nil, err
+		return nil, wmiPerfClassError(err)
 	}
 
 	result := &resultCpu{}

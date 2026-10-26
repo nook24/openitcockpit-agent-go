@@ -25,6 +25,13 @@ type resultDisk struct {
 		Used    uint64  `json:"used"`    // Used disk space in byte
 		Free    uint64  `json:"free"`    // Free disk space in byte
 		Percent float64 `json:"percent"` // Used disk spaces as percent
+
+		// Inodes are only available on Linux, macOS and FreeBSD.
+		// Some filesystems like btrfs or vfat do not report inodes (InodesTotal = 0)
+		InodesTotal   uint64  `json:"inodes_total"`
+		InodesUsed    uint64  `json:"inodes_used"`
+		InodesFree    uint64  `json:"inodes_free"`
+		InodesPercent float64 `json:"inodes_percent"` // Used inodes as percent
 	} `json:"usage"`
 }
 

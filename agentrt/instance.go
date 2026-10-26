@@ -197,14 +197,18 @@ func (a *AgentInstance) doReload(ctx context.Context, cfg *config.Configuration)
 		a.webserver.Reload(cfg)
 	}
 
+	var previousChecks []checks.Check
 	if a.checkRunner != nil {
 		a.checkRunner.Shutdown()
+		previousChecks = a.checkRunner.Checks
 	}
 
 	cList, err := checks.ChecksForConfiguration(cfg)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	// Stop the background goroutines of checks which got disabled
+	checks.CloseRemovedChecks(previousChecks, cList)
 	a.checkRunner = &checkrunner.CheckRunner{
 		Configuration: cfg,
 		Result:        a.checkResult,
@@ -312,6 +316,8 @@ func (a *AgentInstance) stop() {
 		wg.Add(1)
 		go func() {
 			a.checkRunner.Shutdown()
+			// Stop the background goroutines of the checks, e.g. log out from BMCs
+			checks.CloseChecks(a.checkRunner.Checks)
 			a.checkRunner = nil
 			wg.Done()
 		}()

@@ -57,7 +57,8 @@ func TestRunPingCommand(t *testing.T) {
 }
 
 func TestCommandTimeout(t *testing.T) {
-	timeout := 5 * time.Second
+	// The command sleeps for 10 seconds
+	timeout := 1 * time.Second
 	result, err := RunCommand(context.Background(), CommandArgs{
 		Command: testCommands.sleep,
 		Timeout: timeout,

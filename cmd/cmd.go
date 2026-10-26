@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"syscall"
 
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/agentrt"
+	"github.com/openITCOCKPIT/openitcockpit-agent-go/config"
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/platformpaths"
 	"github.com/spf13/cobra"
 )
@@ -29,6 +31,7 @@ type RootCmd struct {
 	logRotate        int
 	shutdown         chan struct{}
 	wg               sync.WaitGroup
+	wgMtx            sync.Mutex
 
 	platformPath platformpaths.PlatformPath
 }
@@ -71,20 +74,22 @@ func (r *RootCmd) preRun(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		// The agent also runs if the log file can not be written (e.g. if the disk is full). It logs to stderr then and
+		// opens the log file as soon as possible.
 		fl, err := os.OpenFile(r.logPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
 		if err != nil {
-			return fmt.Errorf("Could not open/create log file: %s", err)
-		}
-		fl.Close()
-		if !r.disableLogRotate {
-			testPath := filepath.Join(path.Dir(r.logPath), "agent.log.test")
-			fl, err := os.OpenFile(testPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
-			defer func() {
-				fl.Close()
-				os.Remove(testPath)
-			}()
-			if err != nil {
-				return fmt.Errorf("Test for log file rotation was not successful: %s (please check directory permissions)", err)
+			fmt.Fprintf(os.Stderr, "Warning: could not open/create log file: %s\n", err)
+		} else {
+			fl.Close()
+			if !r.disableLogRotate {
+				testPath := filepath.Join(path.Dir(r.logPath), "agent.log.test")
+				fl, err := os.OpenFile(testPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: test for log file rotation was not successful: %s (please check directory permissions)\n", err)
+				} else {
+					fl.Close()
+					os.Remove(testPath)
+				}
 			}
 		}
 	}
@@ -111,9 +116,10 @@ func (r *RootCmd) run(cmd *cobra.Command, args []string) {
 	r.agentRt.Start(ctx)
 	defer r.agentRt.Shutdown()
 
-	// Bind linux signal handler
+	// Bind linux signal handler: Ctrl+C (SIGINT) and the stop of the service by systemd, launchd or the init script (SIGTERM).
+	// After the first signal the handler is removed, so a second signal terminates the agent immediately.
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sig)
 
 	select {
@@ -122,6 +128,12 @@ func (r *RootCmd) run(cmd *cobra.Command, args []string) {
 	case <-r.shutdown:
 		return
 	}
+}
+
+// versionString is printed by --version. Only the version number (e.g. 3.6.1), so scripts and tools like Ansible
+// can compare it without parsing
+func versionString() string {
+	return config.AgentVersion + "\n"
 }
 
 func New() *RootCmd {
@@ -135,7 +147,10 @@ func New() *RootCmd {
 		Args:    cobra.NoArgs,
 		PreRunE: r.preRun,
 		Run:     r.run,
+		Version: config.AgentVersion,
 	}
+	// --version (-v is already used by --verbose)
+	r.cmd.SetVersionTemplate(versionString())
 	r.cmd.PersistentFlags().StringVarP(&r.configPath, "config", "c", "", "Path to configuration file")
 	r.cmd.PersistentFlags().BoolVarP(&r.verbose, "verbose", "v", false, "Enable info output")
 	r.cmd.PersistentFlags().BoolVarP(&r.debug, "debug", "d", false, "Enable debug output")
@@ -150,7 +165,10 @@ func New() *RootCmd {
 }
 
 func (r *RootCmd) Execute() error {
+	// Shutdown can be called concurrently, so wg.Add has to happen before wg.Wait (mutex)
+	r.wgMtx.Lock()
 	r.wg.Add(1)
+	r.wgMtx.Unlock()
 	defer r.wg.Done()
 
 	return r.cmd.Execute()
@@ -158,5 +176,7 @@ func (r *RootCmd) Execute() error {
 
 func (r *RootCmd) Shutdown() {
 	close(r.shutdown)
+	r.wgMtx.Lock()
+	defer r.wgMtx.Unlock()
 	r.wg.Wait()
 }

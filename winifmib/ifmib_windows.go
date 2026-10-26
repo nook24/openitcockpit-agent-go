@@ -131,9 +131,7 @@ func (t *MibIfTable2) Get(index Ulong) *MibIfRow2 {
 	if index < 0 || index >= t.NumEntries {
 		panic("out of bounds")
 	}
-	offset := MibIfRow2Size * uintptr(index)
-	base := uintptr(unsafe.Pointer(&t.Table))
-	return (*MibIfRow2)(unsafe.Pointer(base + offset))
+	return (*MibIfRow2)(unsafe.Add(unsafe.Pointer(&t.Table), MibIfRow2Size*uintptr(index)))
 }
 
 func (t *MibIfTable2) Slice() []*MibIfRow2 {

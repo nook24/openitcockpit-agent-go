@@ -74,9 +74,10 @@ type JsonEventLog struct {
 }
 
 type CheckWindowsEventLog struct {
-	age      time.Duration
-	logfiles []string
-	method   string
+	age        time.Duration
+	logfiles   []string
+	method     string
+	maxRecords int64 // EvtApi only
 }
 
 type EventlogCheckOptions struct {
@@ -116,6 +117,10 @@ func (c *CheckWindowsEventLog) Name() string {
 func (c *CheckWindowsEventLog) Run(ctx context.Context) (interface{}, error) {
 	if strings.ToLower(c.method) == "wmi" {
 		return c.RunWmi(ctx)
+	}
+
+	if strings.ToLower(c.method) == "evtapi" {
+		return c.RunEvtApi(ctx)
 	}
 
 	// Default to PowerShell
@@ -310,8 +315,17 @@ func (c *CheckWindowsEventLog) Configure(cfg *config.Configuration) (bool, error
 		c.age = time.Second * time.Duration(ageSec)
 
 		c.method = cfg.WindowsEventLogMethod
+		c.maxRecords = cfg.WindowsEventLogMaxRecords
+
+		// The EvtApi method keeps the records of the configured event logs between the check runs
+		if strings.ToLower(c.method) == "evtapi" {
+			closeEvtState(c.logfiles)
+		} else {
+			closeEvtState(nil)
+		}
 
 		return true, nil
 	}
+	closeEvtState(nil)
 	return false, nil
 }

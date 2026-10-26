@@ -33,9 +33,10 @@ fi
 
 # Backup configurations to prevent overwriting
 # We append .old to safely identify them in postinstall
-for cfg in config.ini customchecks.ini prometheus_exporters.ini; do
+for cfg in config.ini customchecks.ini prometheus_exporters.ini logfiles.ini certificates.ini files.ini http.ini redfish.ini; do
     if [ -f "$AGENT_DIR/$cfg" ]; then
-        cp "$AGENT_DIR/$cfg" "$AGENT_DIR/$cfg.old"
+        # -p keeps the permissions, e.g. of the redfish.ini which contains passwords
+        cp -p "$AGENT_DIR/$cfg" "$AGENT_DIR/$cfg.old"
     fi
 done
 

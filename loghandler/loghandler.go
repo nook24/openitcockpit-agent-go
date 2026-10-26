@@ -29,10 +29,14 @@ type LogHandler struct {
 
 	devNull io.WriteCloser
 
-	wg       sync.WaitGroup
-	logFile  *os.File
-	shutdown chan struct{}
+	wg         sync.WaitGroup
+	logFile    *os.File
+	openFailed bool // the log file could not be opened, e.g. because the disk is full
+	shutdown   chan struct{}
 }
+
+// The log file is opened again in this interval, if it could not be opened (this is a var for testing)
+var logFileRetryInterval = time.Minute
 
 func (h *LogHandler) openLogFile() {
 	// Check if log directory exists, if not try to create it
@@ -41,11 +45,22 @@ func (h *LogHandler) openLogFile() {
 		os.MkdirAll(dir, 0755)
 	}
 
-	log.Infoln("LogHandler: create/open log file")
+	if !h.openFailed {
+		log.Infoln("LogHandler: create/open log file")
+	}
 
 	fl, err := os.OpenFile(h.LogPath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
-		log.Fatal("LogHandler: could not open/create log file: ", err)
+		// The agent keeps running (e.g. if the disk is full) and logs to the default writer only
+		if !h.openFailed {
+			log.Errorf("LogHandler: could not open/create log file, retrying every %s: %s", logFileRetryInterval, err)
+		}
+		h.openFailed = true
+		return
+	}
+	if h.openFailed {
+		log.Warningln("LogHandler: log file could be opened again after an error: ", h.LogPath)
+		h.openFailed = false
 	}
 
 	if runtime.GOOS == "windows" {
@@ -147,6 +162,9 @@ func (h *LogHandler) Start(parent context.Context) {
 		ctx, cancel := context.WithCancel(parent)
 		defer cancel()
 
+		retry := time.NewTicker(logFileRetryInterval)
+		defer retry.Stop()
+
 		t := time.NewTimer(midnight())
 		defer func() {
 			// this is a function, because the pointer would be resolved statically
@@ -166,6 +184,10 @@ func (h *LogHandler) Start(parent context.Context) {
 			case _, ok := <-h.shutdown:
 				if !ok {
 					return
+				}
+			case <-retry.C:
+				if h.LogPath != "" && h.logFile == nil {
+					h.openLogFile()
 				}
 			case <-t.C:
 				h.doRotate()

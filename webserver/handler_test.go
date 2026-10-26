@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -226,6 +227,116 @@ func TestWebserverHandlerConfig(t *testing.T) {
 	}
 	if string(cfg) != "[default]" {
 		t.Fatal("unexpected response for configuration get")
+	}
+
+	w.Shutdown()
+}
+
+func TestWebserverHandlerAutoTLSCreatesDirectories(t *testing.T) {
+	// Every file is stored in its own directory, which does not exist yet
+	dir := t.TempDir()
+	cfg := &config.Configuration{
+		AutoSslKeyFile: filepath.Join(dir, "private", "agent.key"),
+		AutoSslCsrFile: filepath.Join(dir, "csr", "agent.csr"),
+		AutoSslCrtFile: filepath.Join(dir, "certs", "agent.crt"),
+		AutoSslCaFile:  filepath.Join(dir, "ca", "server_ca.crt"),
+	}
+	w := &handler{
+		StateInput:    make(chan []byte),
+		Configuration: cfg,
+	}
+	ts := httptest.NewServer(w.Handler())
+	defer ts.Close()
+
+	res, err := http.Get(ts.URL + "/autotls?domain=agent.example.org")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected status code of the csr request: %d", res.StatusCode)
+	}
+	for _, file := range []string{cfg.AutoSslKeyFile, cfg.AutoSslCsrFile} {
+		if _, err := os.Stat(file); err != nil {
+			t.Errorf("file was not created: %s", err)
+		}
+	}
+
+	body, _ := json.Marshal(updateCrtRequest{Signed: "certificate", CA: "ca"})
+	res, err = http.Post(ts.URL+"/autotls", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected status code of the certificate update: %d", res.StatusCode)
+	}
+	for file, content := range map[string]string{cfg.AutoSslCrtFile: "certificate", cfg.AutoSslCaFile: "ca"} {
+		if data, err := os.ReadFile(file); err != nil || string(data) != content {
+			t.Errorf("unexpected content of %s: %q %v", file, data, err)
+		}
+	}
+}
+
+func TestWebserverHandlerGzip(t *testing.T) {
+	stateInput := make(chan []byte)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	w := &handler{
+		StateInput:    stateInput,
+		Configuration: &config.Configuration{},
+	}
+	ts := httptest.NewServer(w.Handler())
+	defer ts.Close()
+	w.Start(ctx)
+
+	state := bytes.Repeat([]byte(`{"name": "value"},`), 200)
+	stateInput <- state
+
+	// The transport does not add Accept-Encoding and does not decompress, so the raw response is visible
+	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
+	get := func(acceptEncoding string) (*http.Response, []byte) {
+		req, _ := http.NewRequest("GET", ts.URL, nil)
+		if acceptEncoding != "" {
+			req.Header.Set("Accept-Encoding", acceptEncoding)
+		}
+		r, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Body.Close()
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r, body
+	}
+
+	// Clients without Accept-Encoding (e.g. older receivers) get the uncompressed state
+	r, body := get("")
+	if r.Header.Get("Content-Encoding") != "" || !bytes.Equal(body, state) {
+		t.Errorf("expected the uncompressed state, got %q with %d bytes", r.Header.Get("Content-Encoding"), len(body))
+	}
+
+	// Accept-Encoding: gzip
+	r, body = get("gzip")
+	if r.Header.Get("Content-Encoding") != "gzip" || r.Header.Get("Vary") != "Accept-Encoding" || len(body) >= len(state) {
+		t.Fatalf("expected a compressed response, got %q with %d bytes", r.Header.Get("Content-Encoding"), len(body))
+	}
+	reader, err := gzip.NewReader(bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	decompressed, err := io.ReadAll(reader)
+	if err != nil || !bytes.Equal(decompressed, state) {
+		t.Errorf("the decompressed state does not match (%v)", err)
+	}
+
+	// gzip is not acceptable
+	r, _ = get("gzip;q=0")
+	if r.Header.Get("Content-Encoding") != "" {
+		t.Error("expected an uncompressed response for gzip;q=0")
 	}
 
 	w.Shutdown()

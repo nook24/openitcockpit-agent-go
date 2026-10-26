@@ -50,6 +50,10 @@ func GeneratePrivateKeyIfNotExists(keyFile string) error {
 			Type:  "PRIVATE KEY",
 			Bytes: pemBytes,
 		})
+		// The directory can be changed with autossl-key-file and may not exist yet
+		if err := CreateParentDirectory(keyFile); err != nil {
+			return err
+		}
 		if err := os.WriteFile(keyFile, pemData, 0600); err != nil {
 			return err
 		}

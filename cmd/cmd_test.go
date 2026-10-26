@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openITCOCKPIT/openitcockpit-agent-go/config"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -210,5 +211,20 @@ func TestExecuteMissingPlatformPaths(t *testing.T) {
 		t.Errorf("test failed \"%+v\"", args)
 	} else if !strings.Contains(err.Error(), "No config.ini path given") {
 		t.Error("Unexpected error: ", err)
+	}
+}
+
+func TestExecuteVersion(t *testing.T) {
+	out := &bytes.Buffer{}
+	r := New()
+	// --version must work without a configuration file
+	r.cmd.SetArgs([]string{"--version", "-c", "someinvalidpath"})
+	r.cmd.SetOut(out)
+	r.cmd.SetErr(out)
+	if err := r.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != config.AgentVersion+"\n" {
+		t.Errorf("unexpected output: %q", out.String())
 	}
 }

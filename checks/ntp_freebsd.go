@@ -2,16 +2,38 @@ package checks
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/utils"
 	log "github.com/sirupsen/logrus"
 )
 
-func (c *CheckNtp) Run(ctx context.Context) (interface{}, error) {
+// Configuration files of the NTP implementations available on FreeBSD.
+// /etc/ntp.conf is part of the base system and always exists, so the configuration files of the packages come first
+var freebsdNtpConfigFiles = []string{
+	"/usr/local/etc/chrony.conf", // net/chrony
+	"/usr/local/etc/ntpd.conf",   // net/openntpd
+	"/etc/ntp.conf",              // ntpd of the base system
+}
 
+// Run the actual check
+// if error != nil the check result will be nil
+// ctx can be canceled and runs the timeout
+// CheckResult will be serialized after the return and should not change until the next call to Run
+func (c *CheckNtp) Run(ctx context.Context) (interface{}, error) {
+	// If ntpd is running and synchronized, its offset is used
+	if result, ok := ntpdOffset(ctx); ok {
+		return result, nil
+	}
+
+	// Otherwise the agent measures the offset to the configured time server with an SNTP query.
+	// This also works if no NTP service is running or ntpd is not synchronized yet.
+	servers := ntpServersFromConfig(freebsdNtpConfigFiles, "0.freebsd.pool.ntp.org")
+	return runSNTPCheck(ctx, servers), nil
+}
+
+// ntpdOffset returns the offset of ntpd, if ntpd is running and synchronized
+func ntpdOffset(ctx context.Context) (*resultNtp, bool) {
 	//ntpq -c rv
 	//associd=0 status=c016 leap_alarm, sync_unspec, 1 event, restart,
 	//version="ntpd 4.2.8p18-a (1)", processor="amd64",
@@ -22,22 +44,7 @@ func (c *CheckNtp) Run(ctx context.Context) (interface{}, error) {
 	//clk_jitter=0.000, clk_wander=0.000, leapsec=201701010000,
 	//expire=202606280000
 	//
-	// At least on my test system this command and the ntp services was crashing
-	// so for now we use the same workaround as on macos
-
-	// For now, we send a unixtimestamp in microseconds to the openITCOCKPIT server and compare those two clocks
-
-	//result := &resultNtp{
-	//	Timestamp:      time.Now().Unix(),
-	//	TimestampMicro: time.Now().UnixMicro(),
-	//	SyncStatus:     false,
-	//	Offset:         0,
-	//}
-	//
-	//return result, nil
-
-	var err error
-	var checkResult *resultNtp
+	// On some systems ntpq and the ntp service were crashing, in this case the SNTP query is used
 
 	timeout := 10 * time.Second
 	command := "ntpq -c rv"
@@ -46,42 +53,20 @@ func (c *CheckNtp) Run(ctx context.Context) (interface{}, error) {
 		Command: command,
 		Timeout: timeout,
 	})
-
 	if err != nil || result.RC > 0 {
-		checkResult = &resultNtp{
-			Timestamp:      time.Now().Unix(),
-			TimestampMicro: time.Now().UnixMicro(),
-			SyncStatus:     false,
-			Offset:         0,
-		}
-
 		log.Debugf("Error while executing '%v': %v\n", command, err)
-		return checkResult, nil
+		return nil, false
 	}
 
-	syncStatus := false
-	offset := 0.0
-
-	for _, line := range strings.Split(string(result.Stdout), ",") {
-		if strings.Contains(line, "sync_ntp") {
-			syncStatus = true
-		}
-		if strings.Contains(line, "offset=") {
-			var val float64
-			_, err := fmt.Sscanf(line, "offset=%f", &val)
-			if err == nil {
-				offset = val / 1000.0 // ntpq offset is in ms, convert to seconds
-			}
-		}
+	syncStatus, offset := parseNtpqOutput(result.Stdout)
+	if !syncStatus {
+		return nil, false
 	}
 
-	checkResult = &resultNtp{
+	return &resultNtp{
 		Timestamp:      time.Now().Unix(),
 		TimestampMicro: time.Now().UnixMicro(),
-		SyncStatus:     syncStatus,
+		SyncStatus:     true,
 		Offset:         offset,
-	}
-
-	return checkResult, nil
-
+	}, true
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -43,17 +44,16 @@ func TestGetServiceListFromLaunchctl(t *testing.T) {
 		t.Fatal("Empty result from launchctl list")
 	}
 
-	// The Finder service is probably available and running on all Macs?
-	needle := "com.apple.Finder"
-	foundNeedle := false
+	// The Finder only runs in a GUI session, which does not exist on build servers or via SSH.
+	// Services of Apple exist in every launchd domain.
+	foundApple := false
 	for _, result := range results {
-		if result.Label == needle {
-			foundNeedle = true
+		if strings.HasPrefix(result.Label, "com.apple.") {
+			foundApple = true
+			break
 		}
 	}
-
-	if foundNeedle == false {
-		t.Fatal("Needle not found: " + needle)
+	if !foundApple {
+		t.Fatal("no service of Apple (com.apple.*) found")
 	}
-
 }

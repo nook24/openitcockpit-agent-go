@@ -79,6 +79,9 @@ type PushClient struct {
 	urlSubmitPackageInfo *url.URL
 	apiKeyHeader         string
 	timeout              time.Duration
+	// The server accepts gzip compressed requests. Servers announce this with the Accept-Encoding header
+	// of their responses (RFC 7694), so older servers keep getting uncompressed requests.
+	gzipRequests bool
 }
 
 type registerAgentRequest struct {
@@ -145,9 +148,20 @@ func (p *PushClient) httpRequest(ctx context.Context, url *url.URL, sendJson int
 		return 0, errors.Wrap(err, "could not serialize data for request")
 	}
 
+	compressed := false
+	if p.gzipRequests {
+		if gzipped, err := utils.Gzip(data); err == nil {
+			data = gzipped
+			compressed = true
+		}
+	}
+
 	req, err := http.NewRequestWithContext(ctx, "POST", url.String(), bytes.NewReader(data))
 	if err != nil {
 		return 0, errors.Wrap(err, "could not create request")
+	}
+	if compressed {
+		req.Header.Add("Content-Encoding", "gzip")
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", p.apiKeyHeader)
@@ -158,6 +172,23 @@ func (p *PushClient) httpRequest(ctx context.Context, url *url.URL, sendJson int
 		return 0, errors.Wrap(err, "request failed")
 	}
 	defer res.Body.Close()
+
+	// RFC 7694: the server announces the content codings it accepts for requests
+	accepts := utils.AcceptsGzip(res.Header)
+	if accepts != p.gzipRequests {
+		if accepts {
+			log.Infoln("Push Client: the server accepts gzip compressed requests")
+		} else {
+			log.Infoln("Push Client: the server does not accept gzip compressed requests")
+		}
+		p.gzipRequests = accepts
+	}
+	if compressed && res.StatusCode == http.StatusUnsupportedMediaType {
+		// The server does not accept gzip anymore, e.g. after a downgrade: send the request again without compression
+		_, _ = io.Copy(io.Discard, res.Body)
+		p.gzipRequests = false
+		return p.httpRequest(ctx, url, sendJson, result)
+	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {

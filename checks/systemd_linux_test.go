@@ -11,6 +11,9 @@ import (
 )
 
 func TestChecksCheckSystemdServices(t *testing.T) {
+	if !systemdutil.IsRunningSystemd() {
+		t.Skip("systemd is not running (e.g. a container)")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
@@ -53,20 +56,20 @@ func TestGetServiceListFromDbus(t *testing.T) {
 	}
 
 	// The dbus service is available and running - because we ask dbus
-	needle := "dbus.service"
+	// systemd-journald is part of every system running systemd. dbus is not a good needle,
+	// as Fedora and Arch Linux use dbus-broker.service
+	needle := "systemd-journald.service"
 	foundNeedle := false
 	for _, result := range results {
 		if result.Name == needle {
 			foundNeedle = true
-
-			if result.SubState != "running" {
-				t.Fatal("dbus is not running - this is impossible!")
+			if result.ActiveState != "active" {
+				t.Errorf("%s is not active: %s/%s", needle, result.ActiveState, result.SubState)
 			}
-
 		}
 	}
 
-	if foundNeedle == false {
+	if !foundNeedle {
 		t.Fatal("Needle not found: " + needle)
 	}
 }

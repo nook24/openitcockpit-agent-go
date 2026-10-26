@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 	"unsafe"
 
 	"github.com/openITCOCKPIT/openitcockpit-agent-go/config"
@@ -47,9 +48,13 @@ type Win32_Service struct {
 	*/
 }
 
+// The configuration of the services (e.g. the start type) is cached and refreshed after this duration
+const serviceConfigCacheDuration = 5 * time.Minute
+
 // CheckWinService gathers information about Windows Services services
 type CheckWinService struct {
-	serviceConfigCache map[string]*serviceConfig
+	serviceConfigCache     map[string]*serviceConfig
+	serviceConfigCacheTime time.Time
 }
 
 // Name will be used in the response as check name
@@ -58,9 +63,19 @@ func (c *CheckWinService) Name() string {
 }
 
 type serviceConfig struct {
-	Description string
-	BinPath     string
-	StartType   string
+	Description      string
+	BinPath          string
+	StartType        string
+	DelayedAutoStart bool
+	TriggerStart     bool
+}
+
+// SERVICE_TRIGGER_INFO, see https://learn.microsoft.com/en-us/windows/win32/api/winsvc/ns-winsvc-service_trigger_info
+// The triggers itself are not evaluated, so they are not part of the struct.
+type serviceTriggerInfo struct {
+	TriggersCount uint32
+	Triggers      uintptr
+	Reserved      uintptr
 }
 
 type resultWindowsServices struct {
@@ -71,6 +86,14 @@ type resultWindowsServices struct {
 	Pid         uint32 // 1337
 	Name        string // XblAuthManager
 	Description string // Stellt Authentifizierungs- und Autorisierungsservices für Xbox Live bereit. Wenn der Service beendet wird, funktionieren einige Anwendungen möglicherweise nicht richtig.
+	// StartType "Auto" with DelayedAutoStart is "Automatic (Delayed Start)"
+	DelayedAutoStart bool
+	// Trigger start services are started and stopped by events (e.g. "Automatic (Trigger Start)"), so it is normal that they are stopped
+	TriggerStart bool
+	// Win32 exit code of the service, e.g. 0 if it was stopped regularly or 1067 if the process terminated unexpectedly
+	ExitCode uint32
+	// Exit code of the service itself, only used if ExitCode is 1066 (ERROR_SERVICE_SPECIFIC_ERROR)
+	ServiceSpecificExitCode uint32
 }
 
 // Run the actual check
@@ -155,7 +178,8 @@ var mapServiceStartType = map[uint32]string{
 }
 
 func fetchServiceConfiguration(scManager windows.Handle, serviceName *uint16, service *resultWindowsServices) error {
-	srvHandle, err := windows.OpenService(scManager, serviceName, windows.GENERIC_READ)
+	// SERVICE_QUERY_CONFIG is enough to read the configuration and is granted more often than GENERIC_READ for users without admin rights
+	srvHandle, err := windows.OpenService(scManager, serviceName, windows.SERVICE_QUERY_CONFIG)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprint("could not query service configuration for service ", windows.UTF16PtrToString(serviceName)))
 	}
@@ -197,27 +221,45 @@ func queryServiceConfig(srvHandle windows.Handle, serviceName *uint16, service *
 	service.BinPath = windows.UTF16PtrToString(serviceConfig.BinaryPathName)
 
 	service.StartType = mapServiceStartType[serviceConfig.StartType]
+	service.DelayedAutoStart = queryServiceDelayedAutoStart(srvHandle)
+	service.TriggerStart = queryServiceTriggerStart(srvHandle)
 
-	serviceConfig = nil
-	buf = nil
-
-	bytesNeeded = 0
-
-	if err := windows.QueryServiceConfig2(srvHandle, windows.SERVICE_CONFIG_DESCRIPTION, nil, 0, &bytesNeeded); err != windows.ERROR_INSUFFICIENT_BUFFER {
-		return errors.Wrap(err, fmt.Sprint("could not fetch required buffer size for windows service description query for service ", windows.UTF16PtrToString(serviceName)))
-	}
-
-	buf = make([]byte, bytesNeeded)
-	var serviceDescription = (*windows.SERVICE_DESCRIPTION)(unsafe.Pointer(&buf[0]))
-	if err := windows.QueryServiceConfig2(srvHandle, windows.SERVICE_CONFIG_DESCRIPTION, &buf[0], bytesNeeded, &bytesNeeded); err != windows.ERROR_INSUFFICIENT_BUFFER {
-		return errors.Wrap(err, fmt.Sprint("could not fetch windows service description for service ", windows.UTF16PtrToString(serviceName)))
-	}
-
-	service.Description = windows.UTF16PtrToString(serviceDescription.Description)
-	serviceDescription = nil
-	buf = nil
-
+	// The description is queried by queryServiceDescription
 	return nil
+}
+
+// queryServiceDelayedAutoStart returns true if the service is configured as "Automatic (Delayed Start)"
+func queryServiceDelayedAutoStart(srvHandle windows.Handle) bool {
+	var info windows.SERVICE_DELAYED_AUTO_START_INFO
+	var bytesNeeded uint32
+	err := windows.QueryServiceConfig2(srvHandle, windows.SERVICE_CONFIG_DELAYED_AUTO_START_INFO, (*byte)(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)), &bytesNeeded)
+	return err == nil && info.IsDelayedAutoStartUp != 0
+}
+
+// queryServiceTriggerStart returns true if the service has start triggers (e.g. "Automatic (Trigger Start)")
+func queryServiceTriggerStart(srvHandle windows.Handle) bool {
+	var bytesNeeded uint32
+	if err := windows.QueryServiceConfig2(srvHandle, windows.SERVICE_CONFIG_TRIGGER_INFO, nil, 0, &bytesNeeded); err != windows.ERROR_INSUFFICIENT_BUFFER || bytesNeeded < uint32(unsafe.Sizeof(serviceTriggerInfo{})) {
+		return false
+	}
+	buf := make([]byte, bytesNeeded)
+	if err := windows.QueryServiceConfig2(srvHandle, windows.SERVICE_CONFIG_TRIGGER_INFO, &buf[0], bytesNeeded, &bytesNeeded); err != nil {
+		return false
+	}
+	info := (*serviceTriggerInfo)(unsafe.Pointer(&buf[0]))
+	return info.TriggersCount > 0
+}
+
+// isMissingServiceDescription returns true if the description of a service can not be loaded, as it is a resource of a
+// missing file, e.g. a missing language file of the per-user services like CDPUserSvc_d59647d or Sense, or a missing DLL
+// like the one of WaaSMedicSvc. Windows shows no description for these services either.
+func isMissingServiceDescription(err error) bool {
+	switch err {
+	case windows.ERROR_MUI_FILE_NOT_FOUND, windows.ERROR_FILE_NOT_FOUND, windows.ERROR_RESOURCE_DATA_NOT_FOUND,
+		windows.ERROR_RESOURCE_TYPE_NOT_FOUND, windows.ERROR_RESOURCE_NAME_NOT_FOUND:
+		return true
+	}
+	return false
 }
 
 func queryServiceDescription(srvHandle windows.Handle, serviceName *uint16, service *resultWindowsServices) error {
@@ -226,6 +268,10 @@ func queryServiceDescription(srvHandle windows.Handle, serviceName *uint16, serv
 	)
 
 	if err := windows.QueryServiceConfig2(srvHandle, windows.SERVICE_CONFIG_DESCRIPTION, nil, 0, &bytesNeeded); err != windows.ERROR_INSUFFICIENT_BUFFER {
+		if isMissingServiceDescription(err) {
+			service.Description = ""
+			return nil
+		}
 		return errors.Wrap(err, fmt.Sprint("could not fetch required buffer size for windows service description query for service ", windows.UTF16PtrToString(serviceName)))
 	}
 
@@ -243,8 +289,10 @@ func queryServiceDescription(srvHandle windows.Handle, serviceName *uint16, serv
 }
 
 func (c *CheckWinService) GetServiceListViaCAPI(_ context.Context) ([]*resultWindowsServices, error) {
-	if c.serviceConfigCache == nil {
+	// Refresh the cached configuration from time to time, e.g. if the start type of a service was changed
+	if c.serviceConfigCache == nil || time.Since(c.serviceConfigCacheTime) > serviceConfigCacheDuration {
 		c.serviceConfigCache = make(map[string]*serviceConfig)
+		c.serviceConfigCacheTime = time.Now()
 	}
 
 	log.Debugln("Check Services: open windows service manager")
@@ -283,11 +331,14 @@ func (c *CheckWinService) GetServiceListViaCAPI(_ context.Context) ([]*resultWin
 			Status:      mapServiceState[service.ServiceStatusProcess.CurrentState],
 			Pid:         service.ServiceStatusProcess.ProcessId,
 			Name:        windows.UTF16PtrToString(service.ServiceName),
+
+			ExitCode:                service.ServiceStatusProcess.Win32ExitCode,
+			ServiceSpecificExitCode: service.ServiceStatusProcess.ServiceSpecificExitCode,
 		}
 		sc, ok := c.serviceConfigCache[srvResult.Name]
 		if !ok {
 			if err := fetchServiceConfiguration(scManager, service.ServiceName, srvResult); err != nil {
-				if err == windows.ERROR_ACCESS_DENIED {
+				if errors.Cause(err) == windows.ERROR_ACCESS_DENIED {
 					// we don't have access to all service configurations so we have to use wmi for this
 					if wmiSrv, err := getServiceViaWmi(srvResult.Name); err != nil || wmiSrv == nil {
 						log.Errorln("could not fetch service configuration: ", err)
@@ -301,14 +352,18 @@ func (c *CheckWinService) GetServiceListViaCAPI(_ context.Context) ([]*resultWin
 				}
 			}
 			sc = &serviceConfig{
-				Description: srvResult.Description,
-				BinPath:     srvResult.BinPath,
-				StartType:   srvResult.StartType,
+				Description:      srvResult.Description,
+				BinPath:          srvResult.BinPath,
+				StartType:        srvResult.StartType,
+				DelayedAutoStart: srvResult.DelayedAutoStart,
+				TriggerStart:     srvResult.TriggerStart,
 			}
 		} else {
 			srvResult.BinPath = sc.BinPath
 			srvResult.Description = sc.Description
 			srvResult.StartType = sc.StartType
+			srvResult.DelayedAutoStart = sc.DelayedAutoStart
+			srvResult.TriggerStart = sc.TriggerStart
 		}
 		newCache[srvResult.Name] = sc
 
