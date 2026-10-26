@@ -13,3 +13,12 @@ func countNvidiaPciDevices() int {
 func readXidErrors(since time.Time) ([]*resultGpuXid, error) {
 	return nil, nil
 }
+
+// AMD GPUs are only supported on Linux
+func hasAmdGpus() bool {
+	return false
+}
+
+func collectAmdGpus() []*resultGpu {
+	return nil
+}

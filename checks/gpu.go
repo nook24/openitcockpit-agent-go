@@ -19,9 +19,10 @@ const (
 	gpuMaxXidErrors = 10
 )
 
-// CheckGpu gathers the state of the GPUs (NVIDIA with nvidia-smi)
+// CheckGpu gathers the state of the GPUs (NVIDIA with nvidia-smi, AMD with the amdgpu driver on Linux)
 type CheckGpu struct {
 	nvidiaSmi string
+	amd       bool
 }
 
 // Name will be used in the response as check name
@@ -59,8 +60,8 @@ type resultGpuXid struct {
 
 type resultGpu struct {
 	Index            int    `json:"index"`
-	Vendor           string `json:"vendor"` // NVIDIA
-	Source           string `json:"source"` // nvidia-smi
+	Vendor           string `json:"vendor"` // NVIDIA or AMD
+	Source           string `json:"source"` // nvidia-smi or amdgpu
 	Name             string `json:"name"`
 	PciBusID         string `json:"pci_bus_id"` // e.g. 0000:18:00.0
 	UUID             string `json:"uuid"`
@@ -88,6 +89,7 @@ type resultGpu struct {
 	MemoryUsedBytes  *uint64 `json:"memory_used_bytes"`
 
 	TemperatureCelsius         *float64 `json:"temperature_celsius"`
+	TemperatureHotspotCelsius  *float64 `json:"temperature_hotspot_celsius"` // AMD: junction
 	TemperatureMemoryCelsius   *float64 `json:"temperature_memory_celsius"`
 	TemperatureSlowdownCelsius *float64 `json:"temperature_slowdown_celsius"` // The GPU slows down at this temperature
 	TemperatureShutdownCelsius *float64 `json:"temperature_shutdown_celsius"` // The GPU shuts down at this temperature
@@ -96,17 +98,18 @@ type resultGpu struct {
 	TemperatureHeadroomCelsius *float64 `json:"temperature_headroom_celsius"`
 
 	FanSpeedPercent *float64 `json:"fan_speed_percent"` // 0 is normal for fans which stop at low temperatures
-	PowerWatts      *float64 `json:"power_watts"`
+	PowerWatts      *float64 `json:"power_watts"`       // AMD APUs only report the power of the whole processor, which is not reported
 	PowerLimitWatts *float64 `json:"power_limit_watts"`
 
 	ClockGraphicsMhz    *float64 `json:"clock_graphics_mhz"`
 	ClockGraphicsMaxMhz *float64 `json:"clock_graphics_max_mhz"`
 	ClockMemoryMhz      *float64 `json:"clock_memory_mhz"`
 
-	// Active reasons which slow the GPU down because of a problem: hw_slowdown, hw_thermal_slowdown,
-	// hw_power_brake_slowdown, sw_thermal_slowdown
+	// Active reasons which slow the GPU down because of a problem. NVIDIA: hw_slowdown, hw_thermal_slowdown,
+	// hw_power_brake_slowdown, sw_thermal_slowdown. AMD: vrhot0, vrhot1, prochot_cpu, prochot_gfx
 	ThrottleReasons []string `json:"throttle_reasons"`
-	// All active clock event reasons, also the normal ones like gpu_idle or sw_power_cap
+	// All active clock event reasons, also the normal ones like gpu_idle or sw_power_cap (NVIDIA) or ppt0 and
+	// temp_hotspot (AMD, the power management firmware also limits the clocks by the temperature in normal operation)
 	ClockEventReasons []string `json:"clock_event_reasons"`
 
 	EccEnabled              *bool   `json:"ecc_enabled"`
@@ -131,7 +134,7 @@ type resultGpu struct {
 	PcieLinkWidth    *float64 `json:"pcie_link_width"`
 	PcieLinkWidthMax *float64 `json:"pcie_link_width_max"`
 
-	Processes int `json:"processes"` // Number of processes using the GPU
+	Processes int `json:"processes"` // Number of processes using the GPU, -1 if unknown
 
 	XidCount  int             `json:"xid_count"`  // Xid errors of the last 24 hours
 	XidErrors []*resultGpuXid `json:"xid_errors"` // Newest Xid errors of the last 24 hours
@@ -154,6 +157,10 @@ func (c *CheckGpu) Run(ctx context.Context) (interface{}, error) {
 		}
 		result.Nvidia = nvidia
 		result.Gpus = append(result.Gpus, gpus...)
+	}
+
+	if c.amd {
+		result.Gpus = append(result.Gpus, collectAmdGpus()...)
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -189,7 +196,8 @@ func (c *CheckGpu) Configure(config *config.Configuration) (bool, error) {
 	}
 	// Only enable the check if a GPU driver is installed
 	c.nvidiaSmi = findNvidiaSmi()
-	return c.nvidiaSmi != "", nil
+	c.amd = hasAmdGpus()
+	return c.nvidiaSmi != "" || c.amd, nil
 }
 
 // assignXidErrors adds the Xid errors to the GPUs with the same PCI bus id and returns the remaining ones
