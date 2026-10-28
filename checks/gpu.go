@@ -121,6 +121,7 @@ type resultGpu struct {
 	TemperatureHeadroomCelsius *float64 `json:"temperature_headroom_celsius"`
 
 	FanSpeedPercent *float64 `json:"fan_speed_percent"` // 0 is normal for fans which stop at low temperatures
+	FanSpeedRpm     *float64 `json:"fan_speed_rpm"`     // AMD, Intel and Windows (D3DKMT)
 	PowerWatts      *float64 `json:"power_watts"`       // AMD APUs only report the power of the whole processor, which is not reported
 	PowerLimitWatts *float64 `json:"power_limit_watts"`
 	PowerPercent    *float64 `json:"power_percent"` // Windows (D3DKMT): power in percent of the maximum, the power in watts is unknown

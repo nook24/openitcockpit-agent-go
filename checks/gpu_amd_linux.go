@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +25,9 @@ import (
 var (
 	gpuDrmPath     = "/sys/class/drm"
 	gpuPciIdsPaths = []string{"/usr/share/misc/pci.ids", "/usr/share/hwdata/pci.ids", "/usr/share/pci.ids"}
+	// Product names of AMD GPUs by device and revision id of libdrm (package libdrm-common or libdrm), e.g. "747E, C8,
+	// AMD Radeon RX 7800 XT": https://gitlab.freedesktop.org/mesa/drm/-/blob/main/data/amdgpu.ids
+	gpuAmdgpuIdsPaths = []string{"/usr/share/libdrm/amdgpu.ids", "/opt/amdgpu/share/libdrm/amdgpu.ids"}
 
 	drmCardPattern = regexp.MustCompile(`^card\d+$`)
 
@@ -65,9 +69,9 @@ func amdThrottleReasons(status uint64) (active []string, problems []string) {
 	return active, problems
 }
 
-// amdGpuDevices returns the device directories of the GPUs which use the amdgpu driver, e.g.
-// /sys/class/drm/card1/device
-func amdGpuDevices() []string {
+// drmGpuDevices returns the device directories of the GPUs which use one of the drivers, e.g.
+// /sys/class/drm/card1/device. The card directory is the parent directory.
+func drmGpuDevices(drivers ...string) []string {
 	cards, err := os.ReadDir(gpuDrmPath)
 	if err != nil {
 		return nil
@@ -80,13 +84,18 @@ func amdGpuDevices() []string {
 		}
 		device := filepath.Join(gpuDrmPath, card.Name(), "device")
 		driver, err := filepath.EvalSymlinks(filepath.Join(device, "driver"))
-		if err != nil || filepath.Base(driver) != "amdgpu" {
+		if err != nil || !slices.Contains(drivers, filepath.Base(driver)) {
 			continue
 		}
 		devices = append(devices, device)
 	}
 	sort.Strings(devices)
 	return devices
+}
+
+// amdGpuDevices returns the device directories of the GPUs which use the amdgpu driver
+func amdGpuDevices() []string {
+	return drmGpuDevices("amdgpu")
 }
 
 func hasAmdGpus() bool {
@@ -119,7 +128,11 @@ func readAmdGpu(device string) *resultGpu {
 	}
 	gpu.Name = readSysfsString(filepath.Join(device, "product_name"))
 	if gpu.Name == "" {
-		gpu.Name = amdGpuName(readSysfsString(filepath.Join(device, "device")))
+		deviceID := readSysfsString(filepath.Join(device, "device"))
+		gpu.Name = amdGpuMarketingName(deviceID, readSysfsString(filepath.Join(device, "revision")))
+		if gpu.Name == "" {
+			gpu.Name = amdGpuName(deviceID)
+		}
 	}
 
 	if metrics, err := os.ReadFile(filepath.Join(device, "gpu_metrics")); err == nil {
@@ -183,6 +196,13 @@ func readAmdHwmon(hwmon string, gpu *resultGpu) {
 
 	gpu.TemperatureCelsius = temperature("edge", "input")
 	gpu.TemperatureHotspotCelsius = temperature("junction", "input")
+	if gpu.TemperatureCelsius == nil {
+		// Instinct MI300A only has the junction sensor, old GPUs a temp1 without label
+		gpu.TemperatureCelsius = gpu.TemperatureHotspotCelsius
+		if gpu.TemperatureCelsius == nil {
+			gpu.TemperatureCelsius = readSysfsNumber(filepath.Join(hwmon, "temp1_input"), 1000)
+		}
+	}
 	gpu.TemperatureMemoryCelsius = temperature("mem", "input")
 
 	// The GPU slows down at the critical temperature of the junction (hotspot) and shuts down at the emergency
@@ -201,13 +221,18 @@ func readAmdHwmon(hwmon string, gpu *resultGpu) {
 		gpu.TemperatureHeadroomCelsius = &headroom
 	}
 
-	// Fans can stop at low temperatures (zero RPM), 0 % is no error
+	// Fans can stop at low temperatures (zero RPM), 0 % is no error. Without pwm1 the speed is calculated from the
+	// RPM and the maximum RPM.
+	gpu.FanSpeedRpm = readSysfsNumber(filepath.Join(hwmon, "fan1_input"), 1)
 	if pwm := readSysfsNumber(filepath.Join(hwmon, "pwm1"), 1); pwm != nil {
 		pwmMax := 255.0
 		if value := readSysfsNumber(filepath.Join(hwmon, "pwm1_max"), 1); value != nil && *value > 0 {
 			pwmMax = *value
 		}
 		percent := *pwm / pwmMax * 100
+		gpu.FanSpeedPercent = &percent
+	} else if rpmMax := readSysfsNumber(filepath.Join(hwmon, "fan1_max"), 1); gpu.FanSpeedRpm != nil && rpmMax != nil && *rpmMax > 0 {
+		percent := min(*gpu.FanSpeedRpm / *rpmMax * 100, 100)
 		gpu.FanSpeedPercent = &percent
 	}
 
@@ -305,27 +330,74 @@ func amdGpuHwmon(device string) string {
 	return ""
 }
 
-// amdGpuName returns the name of the GPU of the PCI id database (https://pci-ids.ucw.cz/), e.g.
-// "Navi 32 [Radeon RX 7700 XT / 7800 XT]"
+// amdGpuName returns the name of an AMD GPU, e.g. "AMD Navi 32 [Radeon RX 7700 XT / 7800 XT]"
 func amdGpuName(deviceID string) string {
-	deviceID = strings.ToLower(strings.TrimPrefix(deviceID, "0x"))
-	fallback := fmt.Sprintf("AMD GPU [1002:%s]", deviceID)
-	if deviceID == "" {
-		return "AMD GPU"
+	return gpuPciName("1002", "AMD", deviceID)
+}
+
+// amdGpuMarketingName returns the product name of libdrm (amdgpu.ids) by device and revision id, "" if unknown
+func amdGpuMarketingName(deviceID, revision string) string {
+	deviceID = strings.ToUpper(strings.TrimPrefix(strings.ToLower(deviceID), "0x"))
+	revision = strings.ToUpper(strings.TrimPrefix(strings.ToLower(revision), "0x"))
+	if deviceID == "" || revision == "" {
+		return ""
 	}
+	key := "amdgpu.ids:" + deviceID + ":" + revision
 
 	pciIdsMutex.Lock()
 	defer pciIdsMutex.Unlock()
-	if name, ok := pciIdsCache[deviceID]; ok {
+	if name, ok := pciIdsCache[key]; ok {
 		return name
 	}
-	name := lookupPciIds("1002", deviceID)
-	if name == "" {
-		name = fallback
-	} else {
-		name = "AMD " + name
+	name := lookupAmdgpuIds(deviceID, revision)
+	pciIdsCache[key] = name
+	return name
+}
+
+// lookupAmdgpuIds searches the device in amdgpu.ids of libdrm: "device_id,\trevision_id,\tproduct_name"
+func lookupAmdgpuIds(deviceID, revision string) string {
+	for _, path := range gpuAmdgpuIdsPaths {
+		file, err := os.Open(path)
+		if err != nil {
+			continue
+		}
+		defer file.Close()
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			fields := strings.SplitN(scanner.Text(), ",", 3)
+			if len(fields) != 3 || strings.HasPrefix(fields[0], "#") {
+				continue
+			}
+			if strings.EqualFold(strings.TrimSpace(fields[0]), deviceID) && strings.EqualFold(strings.TrimSpace(fields[1]), revision) {
+				return strings.TrimSpace(fields[2])
+			}
+		}
+		return ""
 	}
-	pciIdsCache[deviceID] = name
+	return ""
+}
+
+// gpuPciName returns the name of the GPU of the PCI id database (https://pci-ids.ucw.cz/) with the vendor name as
+// prefix, e.g. "AMD Navi 32 [Radeon RX 7700 XT / 7800 XT]"
+func gpuPciName(vendorID, vendorName, deviceID string) string {
+	deviceID = strings.ToLower(strings.TrimPrefix(deviceID, "0x"))
+	if deviceID == "" {
+		return vendorName + " GPU"
+	}
+	key := vendorID + ":" + deviceID
+
+	pciIdsMutex.Lock()
+	defer pciIdsMutex.Unlock()
+	if name, ok := pciIdsCache[key]; ok {
+		return name
+	}
+	name := lookupPciIds(vendorID, deviceID)
+	if name == "" {
+		name = fmt.Sprintf("%s GPU [%s]", vendorName, key)
+	} else {
+		name = vendorName + " " + name
+	}
+	pciIdsCache[key] = name
 	return name
 }
 

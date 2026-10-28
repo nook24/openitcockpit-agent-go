@@ -106,19 +106,24 @@ func buildAmdSysfs(t *testing.T, dump string) string {
 		t.Fatal(err)
 	}
 	symlink(filepath.Join(root, "devices", pciBusIDs["0x747e"]), filepath.Join(root, "drm", "renderD128", "device"))
-	other := filepath.Join(root, "devices", "0000:00:02.0")
-	write(filepath.Join(other, "vendor"), "0x8086\n")
+	// BMC graphics of servers (ASPEED)
+	other := filepath.Join(root, "devices", "0000:02:00.0")
+	write(filepath.Join(other, "vendor"), "0x1a03\n")
 	symlink(other, filepath.Join(root, "drm", "card0", "device"))
-	symlink(filepath.Join(root, "drivers", "i915"), filepath.Join(other, "driver"))
+	symlink(filepath.Join(root, "drivers", "ast"), filepath.Join(other, "driver"))
 
 	return filepath.Join(root, "drm")
 }
 
 func setAmdSysfs(t *testing.T, dump string) {
 	t.Helper()
-	drmPath, pciIdsPaths := gpuDrmPath, gpuPciIdsPaths
+	drmPath, pciIdsPaths, procPath, amdgpuIdsPaths := gpuDrmPath, gpuPciIdsPaths, gpuProcPath, gpuAmdgpuIdsPaths
+	gpuProcPath = t.TempDir()
+	drmClientsMutex.Lock()
+	drmClientsPrevious = nil
+	drmClientsMutex.Unlock()
 	t.Cleanup(func() {
-		gpuDrmPath, gpuPciIdsPaths = drmPath, pciIdsPaths
+		gpuDrmPath, gpuPciIdsPaths, gpuProcPath, gpuAmdgpuIdsPaths = drmPath, pciIdsPaths, procPath, amdgpuIdsPaths
 		pciIdsMutex.Lock()
 		pciIdsCache = map[string]string{}
 		pciIdsMutex.Unlock()
@@ -132,6 +137,13 @@ func setAmdSysfs(t *testing.T, dump string) {
 		t.Fatal(err)
 	}
 	gpuPciIdsPaths = []string{filepath.Join(t.TempDir(), "missing"), pciIds}
+
+	// The product names of libdrm only know the revision C8 of the device 747E
+	amdgpuIds := filepath.Join(t.TempDir(), "amdgpu.ids")
+	if err := os.WriteFile(amdgpuIds, []byte("# List of AMDGPU IDs\n\n1.0.0\n747E,\tC8,\tAMD Radeon RX 7800 XT\n747E,\tFF,\tAMD Radeon RX 7700 XT\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	gpuAmdgpuIdsPaths = []string{amdgpuIds}
 	pciIdsMutex.Lock()
 	pciIdsCache = map[string]string{}
 	pciIdsMutex.Unlock()
@@ -149,7 +161,7 @@ func TestCollectAmdGpusIdle(t *testing.T) {
 	}
 
 	gpu := gpus[0]
-	if gpu.Vendor != "AMD" || gpu.Source != "amdgpu" || gpu.Name != "AMD Navi 32 [Radeon RX 7700 XT / 7800 XT]" ||
+	if gpu.Vendor != "AMD" || gpu.Source != "amdgpu" || gpu.Name != "AMD Radeon RX 7800 XT" ||
 		gpu.PciBusID != "0000:03:00.0" || gpu.Integrated || gpu.VbiosVersion != "113-EXT90455-100" || gpu.Processes != -1 {
 		t.Errorf("unexpected GPU: %+v", gpu)
 	}
@@ -164,6 +176,7 @@ func TestCollectAmdGpusIdle(t *testing.T) {
 	assertFloat(t, "temperature_headroom_celsius", gpu.TemperatureHeadroomCelsius, 68)
 	// Zero RPM: the fan stops when idle
 	assertFloat(t, "fan_speed_percent", gpu.FanSpeedPercent, 0)
+	assertFloat(t, "fan_speed_rpm", gpu.FanSpeedRpm, 0)
 	assertFloat(t, "power_watts", gpu.PowerWatts, 26)
 	assertFloat(t, "power_limit_watts", gpu.PowerLimitWatts, 228)
 	assertFloat(t, "clock_graphics_mhz", gpu.ClockGraphicsMhz, 36)
@@ -175,7 +188,8 @@ func TestCollectAmdGpusIdle(t *testing.T) {
 		t.Errorf("unexpected clock event reasons: %v %v", gpu.ClockEventReasons, gpu.ThrottleReasons)
 	}
 
-	// The iGPU is not part of the PCI id database, it is detected as APU by the format of gpu_metrics
+	// The iGPU is neither part of amdgpu.ids nor of the PCI id database, it is detected as APU by the format of
+	// gpu_metrics
 	gpu = gpus[1]
 	if gpu.Name != "AMD GPU [1002:164e]" || gpu.PciBusID != "0000:11:00.0" || !gpu.Integrated {
 		t.Errorf("unexpected GPU: %+v", gpu)
@@ -342,5 +356,40 @@ func TestCheckGpuRunNvidiaAndAmd(t *testing.T) {
 	expected := []string{"NVIDIA/nvidia-smi", "NVIDIA/nvidia-smi", "NVIDIA/nvidia-smi", "NVIDIA/nvidia-smi", "AMD/amdgpu", "AMD/amdgpu"}
 	if !reflect.DeepEqual(vendors, expected) || result.Nvidia == nil || result.Nvidia.Error != "" {
 		t.Errorf("unexpected GPUs: %v %+v", vendors, result.Nvidia)
+	}
+}
+
+// Instinct MI300A: only the junction sensor; GPU without pwm1: the fan speed is calculated from the RPM
+func TestReadAmdHwmonFallbacks(t *testing.T) {
+	hwmon := t.TempDir()
+	for name, content := range map[string]string{
+		"temp1_label": "junction", "temp1_input": "61000", "temp1_crit": "100000",
+		"fan1_input": "1500", "fan1_max": "3000",
+	} {
+		if err := os.WriteFile(filepath.Join(hwmon, name), []byte(content+"\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gpu := &resultGpu{}
+	readAmdHwmon(hwmon, gpu)
+	assertFloat(t, "temperature_celsius", gpu.TemperatureCelsius, 61)
+	assertFloat(t, "temperature_hotspot_celsius", gpu.TemperatureHotspotCelsius, 61)
+	assertFloat(t, "temperature_headroom_celsius", gpu.TemperatureHeadroomCelsius, 39)
+	assertFloat(t, "fan_speed_rpm", gpu.FanSpeedRpm, 1500)
+	assertFloat(t, "fan_speed_percent", gpu.FanSpeedPercent, 50)
+}
+
+func TestAmdGpuMarketingName(t *testing.T) {
+	setAmdSysfs(t, "rx7800xt-raphael-idle.txt")
+	tests := map[[2]string]string{
+		{"0x747e", "0xc8"}: "AMD Radeon RX 7800 XT",
+		{"0x747e", "0xff"}: "AMD Radeon RX 7700 XT",
+		{"0x747e", "0x00"}: "",
+		{"", "0xc8"}:       "",
+	}
+	for ids, expected := range tests {
+		if name := amdGpuMarketingName(ids[0], ids[1]); name != expected {
+			t.Errorf("%v: expected %q, got %q", ids, expected, name)
+		}
 	}
 }

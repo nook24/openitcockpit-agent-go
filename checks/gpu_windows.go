@@ -404,6 +404,11 @@ func d3dkmtAdapterToGpu(adapter *d3dkmtAdapter, counters map[string]*gpuPerfCoun
 			power := float64(perf.Power) / 10
 			gpu.PowerPercent = &power
 		}
+		if adapter.perfCaps != nil && adapter.perfCaps.MaxFanRPM > 0 {
+			// Without the maximum the RPM is unknown, as GPUs without fan report 0
+			rpm := float64(perf.FanRPM)
+			gpu.FanSpeedRpm = &rpm
+		}
 		if caps := adapter.perfCaps; caps != nil && caps.MaxFanRPM > 0 {
 			// Fans can stop at low temperatures (zero RPM), 0 % is no error
 			fan := float64(perf.FanRPM) / float64(caps.MaxFanRPM) * 100

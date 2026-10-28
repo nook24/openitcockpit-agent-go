@@ -137,13 +137,23 @@ func parseXidMessage(message string) *resultGpuXid {
 	}
 }
 
-// hasPlatformGpus returns true if a GPU of the amdgpu driver exists
+// hasPlatformGpus returns true if a GPU of the drivers amdgpu, i915 or xe exists
 func hasPlatformGpus() bool {
-	return hasAmdGpus()
+	return hasAmdGpus() || hasIntelGpus()
 }
 
+// collectPlatformGpus returns the GPUs of the drivers amdgpu, i915 and xe. The utilization of Intel GPUs and the
+// number of processes are read from the DRM clients.
 func collectPlatformGpus(ctx context.Context, existing []*resultGpu) []*resultGpu {
-	return collectAmdGpus()
+	usage, hasPrevious := readDrmUsage("amdgpu", "i915", "xe")
+	gpus := collectAmdGpus()
+	for _, gpu := range gpus {
+		gpu.Processes = 0
+		if u := usage[gpu.PciBusID]; u != nil {
+			gpu.Processes = u.processes
+		}
+	}
+	return append(gpus, collectIntelGpus(usage, hasPrevious)...)
 }
 
 // readGpuDriverEvents is only implemented on Windows, the errors of the NVIDIA driver are read from the kernel log

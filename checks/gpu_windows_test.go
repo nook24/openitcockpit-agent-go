@@ -77,6 +77,7 @@ func TestD3dkmtAdapterToGpu(t *testing.T) {
 	assertNil(t, "temperature_slowdown_celsius", dgpu.TemperatureSlowdownCelsius)
 	assertNil(t, "temperature_headroom_celsius", dgpu.TemperatureHeadroomCelsius)
 	assertFloat(t, "fan_speed_percent", dgpu.FanSpeedPercent, 0)
+	assertFloat(t, "fan_speed_rpm", dgpu.FanSpeedRpm, 0)
 	assertFloat(t, "power_percent", dgpu.PowerPercent, 8.5)
 	assertNil(t, "power_watts", dgpu.PowerWatts)
 	assertFloat(t, "clock_memory_mhz", dgpu.ClockMemoryMhz, 96)
@@ -99,6 +100,7 @@ func TestD3dkmtAdapterToGpu(t *testing.T) {
 	assertNil(t, "memory_total_bytes", igpu.MemoryTotalBytes)
 	assertNil(t, "power_percent", igpu.PowerPercent)
 	assertNil(t, "fan_speed_percent", igpu.FanSpeedPercent)
+	assertNil(t, "fan_speed_rpm", igpu.FanSpeedRpm)
 	assertFloat(t, "temperature_celsius", igpu.TemperatureCelsius, 44)
 }
 
