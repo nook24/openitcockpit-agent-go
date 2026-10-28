@@ -19,10 +19,12 @@ const (
 	gpuMaxXidErrors = 10
 )
 
-// CheckGpu gathers the state of the GPUs (NVIDIA with nvidia-smi, AMD with the amdgpu driver on Linux)
+// CheckGpu gathers the state of the GPUs: NVIDIA with nvidia-smi, other GPUs with the amdgpu driver (Linux) or the
+// generic interfaces of Windows (D3DKMT and performance counters)
 type CheckGpu struct {
 	nvidiaSmi string
-	amd       bool
+	// GPUs of the platform specific source: amdgpu (Linux) or D3DKMT (Windows)
+	platform bool
 }
 
 // Name will be used in the response as check name
@@ -31,9 +33,10 @@ func (c *CheckGpu) Name() string {
 }
 
 type resultGpus struct {
-	Gpus   []*resultGpu       `json:"gpus"`
-	Nvidia *resultGpusNvidia  `json:"nvidia,omitempty"`
-	Xid    *resultGpuXidState `json:"xid,omitempty"`
+	Gpus         []*resultGpu              `json:"gpus"`
+	Nvidia       *resultGpusNvidia         `json:"nvidia,omitempty"`
+	Xid          *resultGpuXidState        `json:"xid,omitempty"`
+	DriverEvents *resultGpuDriverEventList `json:"driver_events,omitempty"` // Windows
 }
 
 type resultGpusNvidia struct {
@@ -58,15 +61,31 @@ type resultGpuXid struct {
 	Message   string `json:"message"`
 }
 
+// resultGpuDriverEventList are the events of the GPU drivers in the Windows event log of the last 24 hours
+type resultGpuDriverEventList struct {
+	Error  string                  `json:"error"` // The event log could not be read
+	Count  int                     `json:"count"`
+	Events []*resultGpuDriverEvent `json:"events"` // Newest events
+}
+
+type resultGpuDriverEvent struct {
+	Timestamp int64  `json:"timestamp"` // Unix timestamp
+	Source    string `json:"source"`    // Display (4101: the driver stopped responding and has recovered, TDR), nvlddmkm (NVIDIA), amdkmdag (AMD), igfx (Intel)
+	EventID   int64  `json:"event_id"`
+	EntryType int64  `json:"entry_type"` // 1 = error, 2 = warning
+	Message   string `json:"message"`
+}
+
 type resultGpu struct {
 	Index            int    `json:"index"`
-	Vendor           string `json:"vendor"` // NVIDIA or AMD
-	Source           string `json:"source"` // nvidia-smi or amdgpu
+	Vendor           string `json:"vendor"` // NVIDIA, AMD, Intel, ...
+	Source           string `json:"source"` // nvidia-smi, amdgpu or d3dkmt
 	Name             string `json:"name"`
 	PciBusID         string `json:"pci_bus_id"` // e.g. 0000:18:00.0
 	UUID             string `json:"uuid"`
 	Serial           string `json:"serial"`
 	VbiosVersion     string `json:"vbios_version"`
+	DriverVersion    string `json:"driver_version"`
 	Integrated       bool   `json:"integrated"`        // Integrated GPU or unified memory (e.g. DGX Spark), the GPU uses the system memory
 	PerformanceState string `json:"performance_state"` // P0 (maximum performance) to P12 (minimum)
 
@@ -100,6 +119,7 @@ type resultGpu struct {
 	FanSpeedPercent *float64 `json:"fan_speed_percent"` // 0 is normal for fans which stop at low temperatures
 	PowerWatts      *float64 `json:"power_watts"`       // AMD APUs only report the power of the whole processor, which is not reported
 	PowerLimitWatts *float64 `json:"power_limit_watts"`
+	PowerPercent    *float64 `json:"power_percent"` // Windows (D3DKMT): power in percent of the maximum, the power in watts is unknown
 
 	ClockGraphicsMhz    *float64 `json:"clock_graphics_mhz"`
 	ClockGraphicsMaxMhz *float64 `json:"clock_graphics_max_mhz"`
@@ -159,8 +179,9 @@ func (c *CheckGpu) Run(ctx context.Context) (interface{}, error) {
 		result.Gpus = append(result.Gpus, gpus...)
 	}
 
-	if c.amd {
-		result.Gpus = append(result.Gpus, collectAmdGpus()...)
+	if c.platform {
+		// NVIDIA GPUs which are already reported by nvidia-smi are skipped
+		result.Gpus = append(result.Gpus, collectPlatformGpus(ctx, result.Gpus)...)
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -175,6 +196,8 @@ func (c *CheckGpu) Run(ctx context.Context) (interface{}, error) {
 			}
 		}
 	}
+
+	result.DriverEvents = readGpuDriverEvents(ctx)
 
 	xids, err := readXidErrors(time.Now().Add(-gpuXidWindow))
 	if err != nil {
@@ -196,8 +219,8 @@ func (c *CheckGpu) Configure(config *config.Configuration) (bool, error) {
 	}
 	// Only enable the check if a GPU driver is installed
 	c.nvidiaSmi = findNvidiaSmi()
-	c.amd = hasAmdGpus()
-	return c.nvidiaSmi != "" || c.amd, nil
+	c.platform = hasPlatformGpus()
+	return c.nvidiaSmi != "" || c.platform, nil
 }
 
 // assignXidErrors adds the Xid errors to the GPUs with the same PCI bus id and returns the remaining ones

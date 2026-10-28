@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -129,4 +130,18 @@ func parseXidMessage(message string) *resultGpuXid {
 		PciBusID: normalizePciBusID(match[2]),
 		Message:  strings.TrimSpace(xidProcessPattern.ReplaceAllString(match[4], "")),
 	}
+}
+
+// hasPlatformGpus returns true if a GPU of the amdgpu driver exists
+func hasPlatformGpus() bool {
+	return hasAmdGpus()
+}
+
+func collectPlatformGpus(ctx context.Context, existing []*resultGpu) []*resultGpu {
+	return collectAmdGpus()
+}
+
+// readGpuDriverEvents is only implemented on Windows, the errors of the NVIDIA driver are read from the kernel log
+func readGpuDriverEvents(ctx context.Context) *resultGpuDriverEventList {
+	return nil
 }

@@ -232,13 +232,13 @@ func parseNvidiaSmi(output []byte, nvidia *resultGpusNvidia) ([]*resultGpu, erro
 	gpus := []*resultGpu{}
 	for _, node := range root.Nodes {
 		if node.XMLName.Local == "gpu" {
-			gpus = append(gpus, parseNvidiaGpu(node))
+			gpus = append(gpus, parseNvidiaGpu(node, nvidia.DriverVersion))
 		}
 	}
 	return gpus, nil
 }
 
-func parseNvidiaGpu(g *nvidiaXMLNode) *resultGpu {
+func parseNvidiaGpu(g *nvidiaXMLNode, driverVersion string) *resultGpu {
 	gpu := &resultGpu{
 		Vendor:            "NVIDIA",
 		Source:            "nvidia-smi",
@@ -247,6 +247,7 @@ func parseNvidiaGpu(g *nvidiaXMLNode) *resultGpu {
 		UUID:              g.value("uuid"),
 		Serial:            g.value("serial"),
 		VbiosVersion:      g.value("vbios_version"),
+		DriverVersion:     driverVersion,
 		PerformanceState:  g.value("performance_state"),
 		PersistenceMode:   g.value("persistence_mode"),
 		DriverModel:       g.value("driver_model/current_dm"),

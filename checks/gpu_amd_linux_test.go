@@ -140,7 +140,7 @@ func setAmdSysfs(t *testing.T, dump string) {
 // Radeon RX 7800 XT and Raphael iGPU of a Ryzen 7000, idle
 func TestCollectAmdGpusIdle(t *testing.T) {
 	setAmdSysfs(t, "rx7800xt-raphael-idle.txt")
-	if !hasAmdGpus() {
+	if !hasPlatformGpus() {
 		t.Fatal("expected AMD GPUs")
 	}
 	gpus := collectAmdGpus()
@@ -229,7 +229,7 @@ func TestCheckGpuRunAmd(t *testing.T) {
 	defer func(path string) { gpuKmsgPath = path }(gpuKmsgPath)
 	gpuKmsgPath = filepath.Join(t.TempDir(), "kmsg")
 
-	r, err := (&CheckGpu{amd: true}).Run(context.Background())
+	r, err := (&CheckGpu{platform: true}).Run(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

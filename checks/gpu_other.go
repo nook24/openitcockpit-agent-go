@@ -1,8 +1,11 @@
-//go:build !linux
+//go:build !linux && !windows
 
 package checks
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // countNvidiaPciDevices is only implemented on Linux
 func countNvidiaPciDevices() int {
@@ -14,11 +17,15 @@ func readXidErrors(since time.Time) ([]*resultGpuXid, error) {
 	return nil, nil
 }
 
-// AMD GPUs are only supported on Linux
-func hasAmdGpus() bool {
+// Only nvidia-smi is supported on this platform
+func hasPlatformGpus() bool {
 	return false
 }
 
-func collectAmdGpus() []*resultGpu {
+func collectPlatformGpus(ctx context.Context, existing []*resultGpu) []*resultGpu {
+	return nil
+}
+
+func readGpuDriverEvents(ctx context.Context) *resultGpuDriverEventList {
 	return nil
 }
