@@ -12,6 +12,9 @@ import (
 	"strings"
 )
 
+// NVIDIA GPUs are read with "nvidia-smi -q -x", the fields of the output are described in the documentation of
+// nvidia-smi: https://docs.nvidia.com/deploy/nvidia-smi/index.html
+
 // Default locations of nvidia-smi, which are not always part of the PATH of the agent service
 var nvidiaSmiLocations = []string{
 	"/usr/bin/nvidia-smi",
@@ -21,7 +24,9 @@ var nvidiaSmiLocations = []string{
 }
 
 // Clock event reasons which slow the GPU down because of a problem. The other reasons are normal, e.g. gpu_idle,
-// sw_power_cap (power limit reached under load) or reliability (Blackwell, also active when idle).
+// sw_power_cap (power limit reached under load) or reliability (Blackwell, also active when idle). See "Clocks Event
+// Reasons" in https://docs.nvidia.com/deploy/nvidia-smi/index.html, e.g. "HW Slowdown is engaged, reducing the core
+// clocks by a factor of 2 or more".
 var nvidiaThrottleReasons = map[string]bool{
 	"hw_slowdown":             true,
 	"hw_thermal_slowdown":     true,
@@ -367,6 +372,8 @@ func parseNvidiaGpu(g *nvidiaXMLNode, driverVersion string) *resultGpu {
 // parseNvidiaTemperature reads the temperatures and thresholds. Older drivers report absolute thresholds
 // (gpu_temp_slow_threshold), newer drivers only the distance to the T.Limit (gpu_temp_tlimit) and thresholds
 // relative to it, e.g. gpu_temp_slow_tlimit_threshold = -2 C: the GPU slows down 2 degrees above the T.Limit.
+// "The T.Limit sensor measures the current margin in degree Celsius to the maximum operating temperature",
+// https://docs.nvidia.com/deploy/nvidia-smi/index.html
 func parseNvidiaTemperature(g *nvidiaXMLNode, gpu *resultGpu) {
 	gpu.TemperatureCelsius = g.number("temperature/gpu_temp")
 	gpu.TemperatureMemoryCelsius = g.number("temperature/memory_temp")

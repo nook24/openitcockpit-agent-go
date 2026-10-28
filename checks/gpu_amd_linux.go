@@ -13,6 +13,14 @@ import (
 	"sync"
 )
 
+// AMD GPUs on Linux are read from the sysfs files of the amdgpu driver:
+// - Device files (gpu_busy_percent, mem_busy_percent, gpu_metrics, the hwmon sensors):
+//   https://docs.kernel.org/gpu/amdgpu/thermal.html
+// - Memory, product_name, serial_number, unique_id: https://docs.kernel.org/gpu/amdgpu/driver-misc.html
+// - RAS error counters: https://docs.kernel.org/gpu/amdgpu/ras.html
+// - Generic hwmon interface: https://docs.kernel.org/hwmon/sysfs-interface.html
+// - PCI files (vendor, device, class, current_link_speed): https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-bus-pci
+
 var (
 	gpuDrmPath     = "/sys/class/drm"
 	gpuPciIdsPaths = []string{"/usr/share/misc/pci.ids", "/usr/share/hwdata/pci.ids", "/usr/share/pci.ids"}
@@ -23,13 +31,14 @@ var (
 	pciIdsCache = map[string]string{}
 )
 
-// Bits of indep_throttle_status of gpu_metrics (ASIC independent, kgd_pp_interface.h)
+// Bits of indep_throttle_status of gpu_metrics (ASIC independent), SMU_THROTTLER_*_BIT in
+// https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/amd/pm/swsmu/inc/amdgpu_smu.h
 var amdThrottleBits = map[int]string{
 	0: "ppt0", 1: "ppt1", 2: "ppt2", 3: "ppt3", 4: "spl", 5: "fppt", 6: "sppt", 7: "sppt_apu",
 	16: "tdc_gfx", 17: "tdc_soc", 18: "tdc_mem", 19: "tdc_vdd", 20: "tdc_cvip", 21: "edc_cpu", 22: "edc_gfx", 23: "apcc",
 	32: "temp_gpu", 33: "temp_core", 34: "temp_mem", 35: "temp_edge", 36: "temp_hotspot", 37: "temp_soc",
 	38: "temp_vr_gfx", 39: "temp_vr_soc", 40: "temp_vr_mem0", 41: "temp_vr_mem1", 42: "temp_liquid0", 43: "temp_liquid1",
-	44: "vrhot0", 45: "vrhot1", 48: "prochot_cpu", 49: "prochot_gfx", 56: "ppm", 57: "fit",
+	44: "vrhot0", 45: "vrhot1", 46: "prochot_cpu", 47: "prochot_gfx", 56: "ppm", 57: "fit",
 }
 
 // Throttle reasons of AMD GPUs which indicate a problem. The power management firmware also limits the clocks by the
@@ -37,6 +46,23 @@ var amdThrottleBits = map[int]string{
 // only reported as clock event reasons. Too high temperatures are detected by temperature_headroom_celsius.
 var amdProblemThrottleReasons = map[string]bool{
 	"vrhot0": true, "vrhot1": true, "prochot_cpu": true, "prochot_gfx": true,
+}
+
+// amdThrottleReasons returns the names of all active bits of indep_throttle_status and of the bits which indicate a
+// problem
+func amdThrottleReasons(status uint64) (active []string, problems []string) {
+	active, problems = []string{}, []string{}
+	for bit := 0; bit < 64; bit++ {
+		name, ok := amdThrottleBits[bit]
+		if !ok || status&(1<<bit) == 0 {
+			continue
+		}
+		active = append(active, name)
+		if amdProblemThrottleReasons[name] {
+			problems = append(problems, name)
+		}
+	}
+	return active, problems
 }
 
 // amdGpuDevices returns the device directories of the GPUs which use the amdgpu driver, e.g.
@@ -100,16 +126,7 @@ func readAmdGpu(device string) *resultGpu {
 		integrated, throttleStatus, hasThrottleStatus := parseAmdGpuMetrics(metrics)
 		gpu.Integrated = integrated
 		if hasThrottleStatus {
-			for bit := 0; bit < 64; bit++ {
-				name, ok := amdThrottleBits[bit]
-				if !ok || throttleStatus&(1<<bit) == 0 {
-					continue
-				}
-				gpu.ClockEventReasons = append(gpu.ClockEventReasons, name)
-				if amdProblemThrottleReasons[name] {
-					gpu.ThrottleReasons = append(gpu.ThrottleReasons, name)
-				}
-			}
+			gpu.ClockEventReasons, gpu.ThrottleReasons = amdThrottleReasons(throttleStatus)
 		}
 	}
 
@@ -148,7 +165,8 @@ func readAmdGpu(device string) *resultGpu {
 	return gpu
 }
 
-// readAmdHwmon reads the sensors of the amdgpu hwmon device (millidegrees, microwatts, Hz)
+// readAmdHwmon reads the sensors of the amdgpu hwmon device (millidegrees, microwatts, Hz), see
+// https://docs.kernel.org/gpu/amdgpu/thermal.html#hwmon-interfaces
 func readAmdHwmon(hwmon string, gpu *resultGpu) {
 	labels := map[string]string{}
 	files, _ := filepath.Glob(filepath.Join(hwmon, "temp*_label"))
@@ -168,7 +186,8 @@ func readAmdHwmon(hwmon string, gpu *resultGpu) {
 	gpu.TemperatureMemoryCelsius = temperature("mem", "input")
 
 	// The GPU slows down at the critical temperature of the junction (hotspot) and shuts down at the emergency
-	// temperature. Older GPUs only have the edge sensor.
+	// temperature ("temperature emergency max value (asic shutdown)"). Older GPUs only have the edge sensor, junction
+	// and mem exist on SOC15 dGPUs (Vega and newer).
 	current := gpu.TemperatureHotspotCelsius
 	gpu.TemperatureSlowdownCelsius = temperature("junction", "crit")
 	gpu.TemperatureShutdownCelsius = temperature("junction", "emergency")
@@ -192,7 +211,8 @@ func readAmdHwmon(hwmon string, gpu *resultGpu) {
 		gpu.FanSpeedPercent = &percent
 	}
 
-	// The power (PPT) of an APU is the power of the whole processor (CPU and GPU)
+	// The power (PPT) of an APU is the power of the whole processor: "power1_average: average power used by the SoC
+	// in microWatts. On APUs this includes the CPU."
 	if !gpu.Integrated {
 		gpu.PowerWatts = readSysfsNumber(filepath.Join(hwmon, "power1_average"), 1000000)
 		if gpu.PowerWatts == nil {
@@ -214,7 +234,8 @@ func readAmdHwmon(hwmon string, gpu *resultGpu) {
 	}
 }
 
-// readAmdRas reads the error counters of RAS (data center GPUs like the Instinct series): "ue: 0\nce: 0\n"
+// readAmdRas reads the error counters of RAS (data center GPUs like the Instinct series): "ue: 0\nce: 0\n", see
+// https://docs.kernel.org/gpu/amdgpu/ras.html
 func readAmdRas(device string, gpu *resultGpu) {
 	files, _ := filepath.Glob(filepath.Join(device, "ras", "*_err_count"))
 	if len(files) == 0 {
@@ -255,7 +276,9 @@ func readAmdRas(device string, gpu *resultGpu) {
 }
 
 // parseAmdGpuMetrics reads the header of the binary gpu_metrics of the power management firmware. Format revision 1
-// are dedicated GPUs, 2 APUs. The throttle status is only read from the layout of version 1.3 (RDNA 2 and 3).
+// are dedicated GPUs (struct gpu_metrics_v1_x), 2 APUs (struct gpu_metrics_v2_x). The throttle status is only read
+// from the layout of version 1.3 (RDNA 2 and 3). The structures are defined in
+// https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/amd/include/kgd_pp_interface.h
 func parseAmdGpuMetrics(data []byte) (integrated bool, throttleStatus uint64, hasThrottleStatus bool) {
 	if len(data) < 4 {
 		return false, 0, false
@@ -265,7 +288,7 @@ func parseAmdGpuMetrics(data []byte) (integrated bool, throttleStatus uint64, ha
 	if formatRevision == 2 {
 		return true, 0, false
 	}
-	// struct gpu_metrics_v1_3: indep_throttle_status is the last field (offset 112)
+	// struct gpu_metrics_v1_3 (120 bytes): indep_throttle_status is the last field (offset 112)
 	if formatRevision == 1 && contentRevision == 3 && size == 120 && len(data) >= 120 {
 		return false, binary.LittleEndian.Uint64(data[112:120]), true
 	}
@@ -282,7 +305,8 @@ func amdGpuHwmon(device string) string {
 	return ""
 }
 
-// amdGpuName returns the name of the GPU of the PCI id database, e.g. "Navi 32 [Radeon RX 7700 XT / 7800 XT]"
+// amdGpuName returns the name of the GPU of the PCI id database (https://pci-ids.ucw.cz/), e.g.
+// "Navi 32 [Radeon RX 7700 XT / 7800 XT]"
 func amdGpuName(deviceID string) string {
 	deviceID = strings.ToLower(strings.TrimPrefix(deviceID, "0x"))
 	fallback := fmt.Sprintf("AMD GPU [1002:%s]", deviceID)

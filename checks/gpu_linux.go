@@ -20,7 +20,8 @@ var (
 )
 
 // countNvidiaPciDevices returns the number of NVIDIA GPUs (PCI class display controller) on the PCI bus, -1 if
-// unknown. NVSwitches have another PCI class (bridge) and are not counted.
+// unknown. NVSwitches have another PCI class (bridge) and are not counted. The files vendor and class are described
+// in https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-bus-pci, the class codes in https://pci-ids.ucw.cz/read/PD/03
 func countNvidiaPciDevices() int {
 	devices, err := os.ReadDir(gpuPciDevicesPath)
 	if err != nil {
@@ -44,6 +45,8 @@ func countNvidiaPciDevices() int {
 	return count
 }
 
+// Xid errors of the NVIDIA driver in the kernel log. The meaning and the recommended action of every Xid code are
+// listed in the Xid catalog of NVIDIA: https://docs.nvidia.com/deploy/xid-errors/analyzing-xid-catalog.html
 // e.g.: NVRM: Xid (PCI:0000:3b:00): 79, pid=1234, name=python3, GPU has fallen off the bus.
 // or:   nvidia-nvswitch3: SXid (PCI:0000:05:00.0): 12028, Non-fatal, Link 32 egress non-posted PRIV error (First)
 var (
@@ -53,6 +56,8 @@ var (
 
 // readXidErrors returns the Xid errors of the NVIDIA driver in the kernel log (/dev/kmsg) since the given time.
 // The kernel log is a ring buffer, older messages may already be overwritten on systems with many kernel messages.
+// /dev/kmsg returns one record per read, -EAGAIN if no more records are available (O_NONBLOCK) and -EPIPE if a
+// record was overwritten: https://www.kernel.org/doc/Documentation/ABI/testing/dev-kmsg
 func readXidErrors(since time.Time) ([]*resultGpuXid, error) {
 	fd, err := unix.Open(gpuKmsgPath, unix.O_RDONLY|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
 	if err != nil {

@@ -53,6 +53,8 @@ type resultGpuXidState struct {
 	Unassigned []*resultGpuXid `json:"unassigned"`
 }
 
+// resultGpuXid is an Xid error of the NVIDIA driver. The meaning and the recommended action of the codes are listed in
+// https://docs.nvidia.com/deploy/xid-errors/analyzing-xid-catalog.html
 type resultGpuXid struct {
 	Timestamp int64  `json:"timestamp"`  // Unix timestamp
 	Type      string `json:"type"`       // Xid (GPU) or SXid (NVSwitch)
@@ -77,6 +79,8 @@ type resultGpuDriverEvent struct {
 }
 
 type resultGpu struct {
+	// Position in the list: NVIDIA GPUs (nvidia-smi) first, then the GPUs of the platform (amdgpu or D3DKMT). It
+	// changes if a GPU or a source is missing, so GPUs have to be identified by pci_bus_id or uuid.
 	Index            int    `json:"index"`
 	Vendor           string `json:"vendor"` // NVIDIA, AMD, Intel, ...
 	Source           string `json:"source"` // nvidia-smi, amdgpu or d3dkmt

@@ -282,6 +282,18 @@ func TestParseAmdGpuMetrics(t *testing.T) {
 	}
 }
 
+func TestAmdThrottleReasons(t *testing.T) {
+	// SMU_THROTTLER_*_BIT of amdgpu_smu.h: PPT0 0, TEMP_HOTSPOT 36, VRHOT0 44, PROCHOT_CPU 46, PROCHOT_GFX 47, FIT 57
+	active, problems := amdThrottleReasons(1 | 1<<36 | 1<<44 | 1<<46 | 1<<47 | 1<<57 | 1<<63)
+	if !reflect.DeepEqual(active, []string{"ppt0", "temp_hotspot", "vrhot0", "prochot_cpu", "prochot_gfx", "fit"}) ||
+		!reflect.DeepEqual(problems, []string{"vrhot0", "prochot_cpu", "prochot_gfx"}) {
+		t.Errorf("unexpected reasons: %v %v", active, problems)
+	}
+	if active, problems := amdThrottleReasons(0); len(active) != 0 || len(problems) != 0 || active == nil {
+		t.Errorf("unexpected reasons: %v %v", active, problems)
+	}
+}
+
 func TestPcieGeneration(t *testing.T) {
 	tests := map[string]interface{}{
 		"2.5 GT/s PCIe": 1.0, "5.0 GT/s PCIe": 2.0, "8.0 GT/s PCIe": 3.0, "16.0 GT/s PCIe": 4.0, "32.0 GT/s PCIe": 5.0,
@@ -291,5 +303,44 @@ func TestPcieGeneration(t *testing.T) {
 		if got := deref(pcieGeneration(speed)); got != expected {
 			t.Errorf("%q: expected %v, got %v", speed, expected, got)
 		}
+	}
+}
+
+// A system with NVIDIA and AMD GPUs: nvidia-smi and the amdgpu driver report their own GPUs
+func TestCheckGpuRunNvidiaAndAmd(t *testing.T) {
+	setAmdSysfs(t, "rx7800xt-raphael-idle.txt")
+	defer func(path string) { gpuKmsgPath = path }(gpuKmsgPath)
+	gpuKmsgPath = filepath.Join(t.TempDir(), "kmsg")
+
+	data, err := os.ReadFile(filepath.Join("testdata", "gpu", "nvidia", "h200-nvl-4x-linux-595.91.07.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "query.xml"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	nvidiaSmi := filepath.Join(dir, "nvidia-smi")
+	if err := os.WriteFile(nvidiaSmi, []byte("#!/bin/sh\ncat "+filepath.Join(dir, "query.xml")+"\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := (&CheckGpu{nvidiaSmi: nvidiaSmi, platform: true}).Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := r.(*resultGpus)
+	var vendors []string
+	pciBusIDs := map[string]bool{}
+	for i, gpu := range result.Gpus {
+		vendors = append(vendors, gpu.Vendor+"/"+gpu.Source)
+		if gpu.Index != i || pciBusIDs[gpu.PciBusID] {
+			t.Errorf("unexpected index or duplicate PCI bus id: %+v", gpu)
+		}
+		pciBusIDs[gpu.PciBusID] = true
+	}
+	expected := []string{"NVIDIA/nvidia-smi", "NVIDIA/nvidia-smi", "NVIDIA/nvidia-smi", "NVIDIA/nvidia-smi", "AMD/amdgpu", "AMD/amdgpu"}
+	if !reflect.DeepEqual(vendors, expected) || result.Nvidia == nil || result.Nvidia.Error != "" {
+		t.Errorf("unexpected GPUs: %v %+v", vendors, result.Nvidia)
 	}
 }
