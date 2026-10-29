@@ -19,8 +19,9 @@ var (
 )
 
 // buildIntelSysfs creates a fake /sys/class/drm and /proc with the files of a dump of intel-sysfs-dump.sh. Every DRM
-// client of the dump gets its own process with the file descriptor 3.
-func buildIntelSysfs(t *testing.T, dump string) (drmPath, procPath string) {
+// client of the dump gets its own process with the file descriptor 3. Sample 1 uses the values of the second samples
+// of the dump: "-- after 2 seconds" (e.g. the energy counter) and the second sample of the clients (version 2 and 3).
+func buildIntelSysfs(t *testing.T, dump string, sample int) (drmPath, procPath string) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("testdata", "gpu", "intel", dump))
 	if err != nil {
@@ -48,21 +49,44 @@ func buildIntelSysfs(t *testing.T, dump string) (drmPath, procPath string) {
 	}
 
 	sysfs, clients, _ := strings.Cut(string(data), "== drm clients (fdinfo)")
-	// Version 2 of the dump script contains a second sample of the clients
-	clients, _, _ = strings.Cut(clients, "== drm clients after")
+	// Version 2 and 3 of the dump script contain a second sample of the clients
+	clients, secondClients, found := strings.Cut(clients, "== drm clients after")
+	if sample == 1 && found {
+		clients = secondClients
+	}
 	var card, device, dir string
+	cardPaths := map[string][2]string{} // /sys/class/drm/cardN -> fake card and device directory
 	for _, line := range strings.Split(sysfs, "\n") {
 		if match := intelDumpCardPattern.FindStringSubmatch(line); match != nil {
 			card = filepath.Join(root, "drm", match[1])
 			device = filepath.Join(root, "devices", match[3])
 			symlink(device, filepath.Join(card, "device"))
 			symlink(filepath.Join(root, "drivers", match[2]), filepath.Join(device, "driver"))
+			cardPaths["/sys/class/drm/"+match[1]] = [2]string{card, device}
 			dir = ""
 			continue
 		}
 		if strings.HasPrefix(line, "-- after") {
 			// Second sample with absolute paths
 			card = ""
+			continue
+		}
+		if strings.HasPrefix(line, "-- upstream") {
+			// Version 4: the upstream PCI bridges are not part of the fake sysfs yet
+			dir = filepath.Join(root, "upstream", line)
+			continue
+		}
+		if path, value, found := strings.Cut(line, ": "); found && strings.HasPrefix(path, "/sys/class/drm/card") {
+			if sample == 1 {
+				for prefix, paths := range cardPaths {
+					switch {
+					case strings.HasPrefix(path, prefix+"/device/"):
+						write(filepath.Join(paths[1], strings.TrimPrefix(path, prefix+"/device/")), strings.TrimSpace(value)+"\n")
+					case strings.HasPrefix(path, prefix+"/"):
+						write(filepath.Join(paths[0], strings.TrimPrefix(path, prefix+"/")), strings.TrimSpace(value)+"\n")
+					}
+				}
+			}
 			continue
 		}
 		if match := intelDumpDirPattern.FindStringSubmatch(line); match != nil && card != "" {
@@ -112,28 +136,11 @@ func buildIntelSysfs(t *testing.T, dump string) (drmPath, procPath string) {
 
 // Raptor Lake-P (Iris Xe Graphics, i915) of a notebook, Debian 13, kernel 6.12: idle and 49 seconds later
 func TestCollectIntelGpusI915(t *testing.T) {
-	drmPath, procPath, pciIdsPaths, now := gpuDrmPath, gpuProcPath, gpuPciIdsPaths, gpuNow
-	t.Cleanup(func() {
-		gpuDrmPath, gpuProcPath, gpuPciIdsPaths, gpuNow = drmPath, procPath, pciIdsPaths, now
-		drmClientsMutex.Lock()
-		drmClientsPrevious = nil
-		drmClientsMutex.Unlock()
-		pciIdsMutex.Lock()
-		pciIdsCache = map[string]string{}
-		pciIdsMutex.Unlock()
-	})
-	pciIds := filepath.Join(t.TempDir(), "pci.ids")
-	if err := os.WriteFile(pciIds, []byte("8086  Intel Corporation\n\ta7a1  Raptor Lake-P [Iris Xe Graphics]\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	gpuPciIdsPaths = []string{pciIds}
-	drmClientsMutex.Lock()
-	drmClientsPrevious = nil
-	drmClientsMutex.Unlock()
+	setIntelTestState(t)
 
 	start := time.Date(2026, 10, 28, 19, 33, 48, 0, time.Local)
 	gpuNow = func() time.Time { return start }
-	gpuDrmPath, gpuProcPath = buildIntelSysfs(t, "raptorlake-p-i915-idle.txt")
+	gpuDrmPath, gpuProcPath = buildIntelSysfs(t, "raptorlake-p-i915-idle.txt", 0)
 	if !hasPlatformGpus() {
 		t.Fatal("expected an Intel GPU")
 	}
@@ -159,7 +166,7 @@ func TestCollectIntelGpusI915(t *testing.T) {
 
 	// 49 seconds later: the render engine was busy for 21273252 ns of all clients
 	gpuNow = func() time.Time { return start.Add(49 * time.Second) }
-	gpuDrmPath, gpuProcPath = buildIntelSysfs(t, "raptorlake-p-i915-load.txt")
+	gpuDrmPath, gpuProcPath = buildIntelSysfs(t, "raptorlake-p-i915-load.txt", 0)
 	gpus = collectPlatformGpus(nil, nil)
 	if len(gpus) != 1 {
 		t.Fatalf("expected 1 GPU, got %d", len(gpus))
@@ -344,4 +351,98 @@ func TestReadIntelPcieLink(t *testing.T) {
 	readIntelPcieLink(gpuDevice, gpu)
 	assertFloat(t, "pcie_link_gen", gpu.PcieLinkGen, 1)
 	assertFloat(t, "pcie_link_width", gpu.PcieLinkWidth, 1)
+}
+
+// setIntelTestState isolates the global state of the GPU check for a test and returns a fake PCI id database
+func setIntelTestState(t *testing.T) {
+	t.Helper()
+	drmPath, procPath, pciIdsPaths, now := gpuDrmPath, gpuProcPath, gpuPciIdsPaths, gpuNow
+	reset := func() {
+		drmClientsMutex.Lock()
+		drmClientsPrevious = nil
+		drmClientsMutex.Unlock()
+		intelEnergyMutex.Lock()
+		intelEnergyPrevious = map[string]intelEnergySample{}
+		intelEnergyMutex.Unlock()
+		pciIdsMutex.Lock()
+		pciIdsCache = map[string]string{}
+		pciIdsMutex.Unlock()
+	}
+	t.Cleanup(func() {
+		gpuDrmPath, gpuProcPath, gpuPciIdsPaths, gpuNow = drmPath, procPath, pciIdsPaths, now
+		reset()
+	})
+	reset()
+	pciIds := filepath.Join(t.TempDir(), "pci.ids")
+	if err := os.WriteFile(pciIds, []byte("8086  Intel Corporation\n\t56a5  DG2 [Arc A380]\n\ta7a1  Raptor Lake-P [Iris Xe Graphics]\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	gpuPciIdsPaths = []string{pciIds}
+}
+
+// Arc A380 (i915, Ubuntu 24.04, kernel 6.8) under load: ffmpeg uses the video engines. intel_gpu_top showed Video
+// 63.11 % and VideoEnhance 20.78 % at the same time.
+func TestCollectIntelGpusArcA380Load(t *testing.T) {
+	setIntelTestState(t)
+	// Times of the two samples of the clients in the dump (16.6 seconds, the dump script is slow)
+	first, second := time.Unix(1793214888, 520801611), time.Unix(1793214905, 157295636)
+
+	gpuNow = func() time.Time { return first }
+	gpuDrmPath, gpuProcPath = buildIntelSysfs(t, "arc-a380-i915-load.txt", 0)
+	gpus := collectPlatformGpus(nil, nil)
+	if len(gpus) != 1 {
+		t.Fatalf("expected 1 GPU, got %d", len(gpus))
+	}
+	gpu := gpus[0]
+	if gpu.Name != "Intel DG2 [Arc A380]" || gpu.Source != "i915" || gpu.PciBusID != "0000:06:00.0" || gpu.Integrated || gpu.Processes != 1 {
+		t.Errorf("unexpected GPU: %+v", gpu)
+	}
+	assertNil(t, "utilization_percent", gpu.UtilizationPercent)
+	// drm-resident-local0 of the client
+	assertUint(t, "memory_used_bytes", gpu.MemoryUsedBytes, 506440*1024)
+	assertNil(t, "memory_total_bytes", gpu.MemoryTotalBytes)
+	assertFloat(t, "power_limit_watts", gpu.PowerLimitWatts, 55)
+	assertFloat(t, "clock_graphics_mhz", gpu.ClockGraphicsMhz, 1400)
+	assertFloat(t, "clock_graphics_max_mhz", gpu.ClockGraphicsMaxMhz, 2450)
+	// Temperature and fan only with kernel 6.12 and newer
+	assertNil(t, "temperature_celsius", gpu.TemperatureCelsius)
+	assertNil(t, "fan_speed_rpm", gpu.FanSpeedRpm)
+	// The dump has no data of the upstream bridges, so the internal link of the GPU is reported
+	assertFloat(t, "pcie_link_width", gpu.PcieLinkWidth, 1)
+
+	gpuNow = func() time.Time { return second }
+	gpuDrmPath, gpuProcPath = buildIntelSysfs(t, "arc-a380-i915-load.txt", 1)
+	gpu = collectPlatformGpus(nil, nil)[0]
+	// Video: (63085203168 - 41519085608) ns / (16.636 s * 2 engines) = 64.82 %
+	for name, value := range map[string]*float64{"utilization_percent": gpu.UtilizationPercent, "encoder_utilization_percent": gpu.EncoderUtilizationPercent, "decoder_utilization_percent": gpu.DecoderUtilizationPercent} {
+		if value == nil || *value < 64.81 || *value > 64.83 {
+			t.Errorf("%s: expected 64.82, got %v", name, deref(value))
+		}
+	}
+}
+
+// Arc A380 idle without clients: 15.9 W from the energy counter
+func TestCollectIntelGpusArcA380Idle(t *testing.T) {
+	setIntelTestState(t)
+	start := time.Unix(1793214374, 0)
+	gpuNow = func() time.Time { return start }
+	gpuDrmPath, gpuProcPath = buildIntelSysfs(t, "arc-a380-i915-idle.txt", 0)
+	gpu := collectPlatformGpus(nil, nil)[0]
+	assertNil(t, "power_watts", gpu.PowerWatts)
+	assertFloat(t, "clock_graphics_mhz", gpu.ClockGraphicsMhz, 0)
+
+	// The second sample of the energy counter 2 seconds later
+	gpuNow = func() time.Time { return start.Add(2 * time.Second) }
+	gpuDrmPath, gpuProcPath = buildIntelSysfs(t, "arc-a380-i915-idle.txt", 1)
+	gpu = collectPlatformGpus(nil, nil)[0]
+	// (245045861877 - 245014123596) µJ / 2 s
+	if gpu.PowerWatts == nil || *gpu.PowerWatts < 15.86 || *gpu.PowerWatts > 15.88 {
+		t.Errorf("unexpected power: %v", deref(gpu.PowerWatts))
+	}
+	// No client: idle, no memory known
+	assertFloat(t, "utilization_percent", gpu.UtilizationPercent, 0)
+	assertNil(t, "memory_used_bytes", gpu.MemoryUsedBytes)
+	if gpu.Processes != 0 {
+		t.Errorf("unexpected processes: %d", gpu.Processes)
+	}
 }

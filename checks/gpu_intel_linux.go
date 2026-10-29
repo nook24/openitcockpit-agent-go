@@ -80,6 +80,11 @@ func readIntelGpu(device string, usage map[string]*drmUsage, hasPrevious bool) *
 	if u := usage[gpu.PciBusID]; u != nil {
 		gpu.UtilizationPercent, gpu.EncoderUtilizationPercent, gpu.DecoderUtilizationPercent = u.utilization, u.encoder, u.decoder
 		gpu.Processes = u.processes
+		if !gpu.Integrated {
+			// The memory of the GPU used by the clients (drm-resident-local0). The size of the memory is only
+			// available with an ioctl (DRM_I915_QUERY_MEMORY_REGIONS), so memory_total_bytes stays unknown.
+			gpu.MemoryUsedBytes = u.vramUsed
+		}
 	}
 	if gpu.UtilizationPercent == nil && hasPrevious {
 		// No client was running during both check runs

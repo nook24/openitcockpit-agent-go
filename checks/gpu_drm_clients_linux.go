@@ -31,6 +31,8 @@ type drmClient struct {
 	cycles      map[string]uint64 // drm-cycles-<engine>: busy cycles (xe)
 	totalCycles map[string]uint64 // drm-total-cycles-<engine>: GPU timestamp in cycles (xe)
 	capacity    map[string]uint64 // drm-engine-capacity-<engine>: number of engines of this type, default 1
+	vram        uint64            // Sum of drm-resident-<region> of the memory of the GPU (i915: local0, xe: vram0) in bytes
+	hasVram     bool
 }
 
 type drmClientsSample struct {
@@ -44,6 +46,7 @@ type drmUsage struct {
 	encoder     *float64
 	decoder     *float64
 	processes   int
+	vramUsed    *uint64 // Memory of the GPU used by the clients (Intel), nil if no client reports it
 }
 
 // readDrmClients reads the DRM clients of the drivers from /proc/<pid>/fdinfo. Only the files which are links to
@@ -115,6 +118,9 @@ func parseDrmFdinfo(path string, drivers []string) (*drmClient, string) {
 			client.totalCycles[strings.TrimPrefix(key, "drm-total-cycles-")] = parseDrmNumber(value)
 		case strings.HasPrefix(key, "drm-cycles-"):
 			client.cycles[strings.TrimPrefix(key, "drm-cycles-")] = parseDrmNumber(value)
+		case strings.HasPrefix(key, "drm-resident-") && isDrmVramRegion(strings.TrimPrefix(key, "drm-resident-")):
+			client.vram += parseDrmBytes(value)
+			client.hasVram = true
 		}
 	}
 	if id == "" || client.pdev == "" {
@@ -133,6 +139,27 @@ func parseDrmNumber(value string) uint64 {
 	number, _, _ := strings.Cut(value, " ")
 	n, _ := strconv.ParseUint(number, 10, 64)
 	return n
+}
+
+// parseDrmBytes returns the bytes of memory values like "506440 KiB", "12 MiB" or "0"
+func parseDrmBytes(value string) uint64 {
+	number, unit, _ := strings.Cut(strings.TrimSpace(value), " ")
+	n, _ := strconv.ParseUint(number, 10, 64)
+	switch unit {
+	case "KiB":
+		return n * 1024
+	case "MiB":
+		return n * 1024 * 1024
+	case "GiB":
+		return n * 1024 * 1024 * 1024
+	}
+	return n
+}
+
+// isDrmVramRegion returns true for the memory regions of the GPU itself: local0 (i915), vram0 (xe). Stolen memory is
+// part of the system memory.
+func isDrmVramRegion(region string) bool {
+	return strings.HasPrefix(region, "local") || strings.HasPrefix(region, "vram")
 }
 
 // drmUsageByPdev calculates the usage of the GPUs (by PCI bus id) between two samples. Without a previous sample
@@ -155,6 +182,17 @@ func drmUsageByPdev(previous, current *drmClientsSample) map[string]*drmUsage {
 	}
 	for pdev, p := range pids {
 		get(pdev).processes = len(p)
+	}
+	// Buffers which are shared between clients are counted for every client
+	for _, client := range current.clients {
+		if !client.hasVram {
+			continue
+		}
+		usage := get(client.pdev)
+		if usage.vramUsed == nil {
+			usage.vramUsed = new(uint64)
+		}
+		*usage.vramUsed += client.vram
 	}
 
 	if previous == nil {
