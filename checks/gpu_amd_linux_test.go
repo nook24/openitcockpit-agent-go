@@ -140,7 +140,7 @@ func setAmdSysfs(t *testing.T, dump string) {
 
 	// The product names of libdrm only know the revision C8 of the device 747E
 	amdgpuIds := filepath.Join(t.TempDir(), "amdgpu.ids")
-	if err := os.WriteFile(amdgpuIds, []byte("# List of AMDGPU IDs\n\n1.0.0\n747E,\tC8,\tAMD Radeon RX 7800 XT\n747E,\tFF,\tAMD Radeon RX 7700 XT\n"), 0600); err != nil {
+	if err := os.WriteFile(amdgpuIds, []byte("# List of AMDGPU IDs\n\n1.0.0\n747E,\tC8,\tAMD Radeon RX 7800 XT\n747E,\tFF,\tAMD Radeon RX 7700 XT\n15D8,\tC8,\tAMD Radeon Vega 11 Graphics\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	gpuAmdgpuIdsPaths = []string{amdgpuIds}
@@ -392,4 +392,29 @@ func TestAmdGpuMarketingName(t *testing.T) {
 			t.Errorf("%v: expected %q, got %q", ids, expected, name)
 		}
 	}
+}
+
+// Picasso APU (Ryzen 3000G, Radeon Vega 11) under load (glmark2): no gpu_metrics, the APU is detected by vddnb. Live
+// test: the Ubuntu resources app showed 99 % utilization, 1.39 of 2.15 GB video memory, 1.40 GHz and 46 °C.
+func TestCollectAmdGpusPicasso(t *testing.T) {
+	setAmdSysfs(t, "picasso-vega11-load.txt")
+	gpus := collectAmdGpus()
+	if len(gpus) != 1 {
+		t.Fatalf("expected 1 GPU, got %d", len(gpus))
+	}
+	gpu := gpus[0]
+	if gpu.Name != "AMD Radeon Vega 11 Graphics" || gpu.PciBusID != "0000:27:00.0" || !gpu.Integrated || gpu.VbiosVersion != "113-PICASSO-118" {
+		t.Errorf("unexpected GPU: %+v", gpu)
+	}
+	assertFloat(t, "utilization_percent", gpu.UtilizationPercent, 89)
+	// VRAM (carve-out of the system memory) and GTT
+	assertUint(t, "memory_used_bytes", gpu.MemoryUsedBytes, 1415872512+156766208)
+	assertNil(t, "memory_total_bytes", gpu.MemoryTotalBytes)
+	assertFloat(t, "temperature_celsius", gpu.TemperatureCelsius, 52)
+	assertFloat(t, "clock_graphics_mhz", gpu.ClockGraphicsMhz, 1400)
+	assertFloat(t, "pcie_link_gen", gpu.PcieLinkGen, 3)
+	// No power (PPT without value), no fan
+	assertNil(t, "power_watts", gpu.PowerWatts)
+	assertNil(t, "fan_speed_percent", gpu.FanSpeedPercent)
+	assertNil(t, "temperature_headroom_celsius", gpu.TemperatureHeadroomCelsius)
 }

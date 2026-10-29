@@ -143,6 +143,12 @@ func readAmdGpu(device string) *resultGpu {
 		}
 	}
 
+	hwmon := amdGpuHwmon(device)
+	if !gpu.Integrated && isAmdApuHwmon(hwmon) {
+		// Older APUs (e.g. Raven and Picasso, Ryzen 2000G and 3000G) do not support gpu_metrics
+		gpu.Integrated = true
+	}
+
 	gpu.UtilizationPercent = readSysfsNumber(filepath.Join(device, "gpu_busy_percent"), 1)
 	gpu.MemoryUtilizationPercent = readSysfsNumber(filepath.Join(device, "mem_busy_percent"), 1)
 
@@ -172,7 +178,7 @@ func readAmdGpu(device string) *resultGpu {
 
 	readAmdRas(device, gpu)
 
-	if hwmon := amdGpuHwmon(device); hwmon != "" {
+	if hwmon != "" {
 		readAmdHwmon(hwmon, gpu)
 	}
 	return gpu
@@ -318,6 +324,16 @@ func parseAmdGpuMetrics(data []byte) (integrated bool, throttleStatus uint64, ha
 		return false, binary.LittleEndian.Uint64(data[112:120]), true
 	}
 	return false, 0, false
+}
+
+// isAmdApuHwmon returns true if the hwmon device has the voltage of the northbridge (vddnb). The kernel only creates it
+// for APUs: "only APUs other than gc 9,4,3 have vddnb" in drivers/gpu/drm/amd/pm/amdgpu_pm.c
+// (https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/amd/pm/amdgpu_pm.c)
+func isAmdApuHwmon(hwmon string) bool {
+	if hwmon == "" {
+		return false
+	}
+	return readSysfsString(filepath.Join(hwmon, "in1_label")) == "vddnb"
 }
 
 func amdGpuHwmon(device string) string {
