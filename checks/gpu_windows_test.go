@@ -79,6 +79,14 @@ func TestD3dkmtAdapterToGpu(t *testing.T) {
 	assertFloat(t, "fan_speed_percent", dgpu.FanSpeedPercent, 0)
 	assertFloat(t, "fan_speed_rpm", dgpu.FanSpeedRpm, 0)
 	assertFloat(t, "power_percent", dgpu.PowerPercent, 8.5)
+
+	// The AMD driver reports the power 0 also under full load, 0 is unknown
+	amd := d3dkmtAdapterToGpu(&d3dkmtAdapter{
+		luid: "0x00000000_0x00013C9C", name: "AMD Radeon RX 7800 XT", vendorID: 0x1002,
+		segments: &d3dkmtSegmentSizeInfo{DedicatedVideoMemorySize: 16176 << 20},
+		perfData: &d3dkmtAdapterPerfData{Temperature: 620, Power: 0},
+	}, counters)
+	assertNil(t, "power_percent", amd.PowerPercent)
 	assertNil(t, "power_watts", dgpu.PowerWatts)
 	assertFloat(t, "clock_memory_mhz", dgpu.ClockMemoryMhz, 96)
 	assertFloat(t, "clock_graphics_max_mhz", dgpu.ClockGraphicsMaxMhz, 2213)

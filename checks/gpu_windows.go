@@ -398,8 +398,9 @@ func d3dkmtAdapterToGpu(adapter *d3dkmtAdapter, counters map[string]*gpuPerfCoun
 			clock := float64(perf.MemoryFrequency) / 1e6
 			gpu.ClockMemoryMhz = &clock
 		}
-		if !gpu.Integrated {
-			// The power of integrated GPUs is the power of the whole processor
+		// The power of integrated GPUs is the power of the whole processor. The AMD driver does not report the power of
+		// dedicated GPUs, it is 0 also under full load (Radeon RX 7800 XT), so 0 is unknown.
+		if !gpu.Integrated && perf.Power > 0 {
 			// Tenths of a percent
 			power := float64(perf.Power) / 10
 			gpu.PowerPercent = &power
